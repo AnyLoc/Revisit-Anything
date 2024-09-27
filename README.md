@@ -10,6 +10,7 @@ This is the code release for our paper "Revisit Anything: Visual Place Recogniti
 - For datasets common with AnyLoc (i.e. Baidu, VPAir, pitts, 17places), you can download dataset from [this](https://github.com/AnyLoc/AnyLoc/issues/34#issuecomment-2162492086) for now.
 - For SF-XL, MSLS and AmsterTime, find instructions [here](https://saishubodh.notion.site/SF-XL-and-MSLS-download-dataset-10e874ed2adf80e98e7dd32911152562?pvs=4). 
 
+To get going quickly, it is suggested you start with a small dataset like 17places.
 
 
 ## Dataset preparation
