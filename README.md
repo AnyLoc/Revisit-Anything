@@ -1,5 +1,8 @@
 This is the code release for our paper "Revisit Anything: Visual Place Recognition via Image Segment Retrieval (ECCV 2024)".
 
+### Revisit Anything = SAM + DINO + VPR!
+
+
 
 # Dataset
 ## Dataset Download
