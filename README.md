@@ -4,7 +4,10 @@ This is the code release for our paper "Revisit Anything: Visual Place Recogniti
 # Dataset
 ## Dataset Download
 
-You can download dataset from [this](https://github.com/AnyLoc/AnyLoc/issues/34#issuecomment-2162492086) for now. We will soon share a permanent link/detailed instructions for all datasets.
+- For datasets common with AnyLoc (i.e. Baidu, VPAir, pitts, 17places), you can download dataset from [this](https://github.com/AnyLoc/AnyLoc/issues/34#issuecomment-2162492086) for now.
+- For SF-XL, MSLS and AmsterTime, find instructions [here](https://saishubodh.notion.site/SF-XL-and-MSLS-download-dataset-10e874ed2adf80e98e7dd32911152562?pvs=4). 
+
+
 
 ## Dataset preparation
 Say your main directory where you would be placing all your datasets is `workdir_data`. You may need to rename each of dataset folder/subfolder names as per the dataset name in `place_rec_global_config.py`. It must look like:   
