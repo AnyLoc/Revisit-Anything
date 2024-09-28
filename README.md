@@ -52,7 +52,7 @@ Then run the following scripts sequentially with one or both of these arguments.
 For full pipeline, you need to run first 3 scripts below for pre-processing (1. DINO/SAM extraction  2. (optional) generate VLAD cluster centers 3. Save pca model) and then the final 4th script to run the main segVLAD pipeline get the final results.
 
 
-1. For DINO/SAM extraction:   
+1. For DINO/SAM extraction: (choose one of DINO or SAM)     
     ```
     python place_rec_SAM_DINO.py --dataset <> --method DINO/SAM
     ```    
@@ -62,7 +62,7 @@ For full pipeline, you need to run first 3 scripts below for pre-processing (1. 
     python vlad_c_centers_pt_gen.py --dataset <>
     ```
     NOTE: You don't need to run this step on your end, they already exist in `cache` folder. You can run this if you want to generate your own cluster centers say on a new dataset.  
-3. PCA extraction after the above are done:
+3. PCA extraction after the above are done: (Choose one of domain or map, you can start out with domain first)
     ```
     place_rec_global_any_dataset_pca_extraction.py --dataset <> --experiment <> --vocab-vlad <domain/map>
     ```
