@@ -64,7 +64,7 @@ For full pipeline, you need to run first 3 scripts below for pre-processing (1. 
     NOTE: You don't need to run this step on your end, they already exist in `cache` folder. You can run this if you want to generate your own cluster centers say on a new dataset.  
 3. PCA extraction after the above are done: (Choose one of domain or map, you can start out with domain first)
     ```
-    place_rec_global_any_dataset_pca_extraction.py --dataset <> --experiment <> --vocab-vlad <domain/map>
+    place_rec_pca.py --dataset <> --experiment <> --vocab-vlad <domain/map>
     ```
 4. Main SegVLAD pipeline after all the above are done:
     ```
