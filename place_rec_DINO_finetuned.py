@@ -12,10 +12,10 @@ from tqdm import tqdm
 import numpy as np
 
 import argparse
-import func
-from place_rec_global_config import datasets, experiments
+import func_vpr 
+from place_rec_global_config import datasets, workdir_data
 
-cmap = matplotlib.cm.get_cmap("jet")
+
 
 if __name__=="__main__":
     DINONV_extraction = True #False # # SegVLAD finetuned
@@ -29,7 +29,6 @@ if __name__=="__main__":
 
     parser = argparse.ArgumentParser(description='SAM/DINO/FastSAM extraction for Any Dataset. See place_rec_global_config.py to see how to give arguments.')
     parser.add_argument('--dataset', required=True, help='Dataset name') # baidu, pitts etc
-    parser.add_argument('--debug', action='store_true', help='Not being implemented yet.')
     args = parser.parse_args()
 
     # Load dataset and experiment configurations
@@ -40,20 +39,14 @@ if __name__=="__main__":
 
     print(dataset_config)
 
-    # cfg = {'rmin':0, 'desired_width':640, 'desired_height':480} # Note for later: Not using this cfg anywhere in local code currently. Should incorporate as part of local matching later.
     cfg = dataset_config['cfg']
     # mask width and height: half if mask_full_resolution is False, else True
     width_DINO, height_DINO =  cfg['desired_width'], cfg['desired_height']
-    print(f"IMPORTANT: The dimensions being used for DINO extraction are both {width_DINO}x{height_DINO} pixels.")
+    print(f"IMPORTANT: The dimensions being used for DINO extraction are {width_DINO}x{height_DINO} pixels.")
 
     # if args.dataset == "pitts" or args.dataset.startswith("msls") or args.dataset == "tokyo247":
-    workdir = f'/scratch/saishubodh/segments_data/{args.dataset}/out'
+    workdir = f'{workdir_data}/{args.dataset}/out'
     os.makedirs(workdir, exist_ok=True)
-    workdir_data = '/scratch/saishubodh/segments_data'
-    # else: 
-    #     workdir = f'/ssd_scratch/saishubodh/segments_data/{args.dataset}/out'
-    #     os.makedirs(workdir, exist_ok=True)
-    #     workdir_data = '/ssd_scratch/saishubodh/segments_data'
     save_path_results = f"{workdir}/results/"
 
     ims_sidx, ims_eidx, ims_step = 0, None, 1
@@ -95,8 +88,8 @@ if __name__=="__main__":
             print("DINONV extraction started...")
             # dino = func.loadDINO(cfg_dino, device="cuda")
             # func.process_dino_ft_to_h5(h5FullPathDINONV,cfg_dino,ims,dino,dataDir=dataPath)
-            backbone = func.loadDINONV(cfg_dino, dino_nv_checkpoint,device="cuda",feat_type="backbone")
-            func.process_DINONV(backbone,ims,cfg_dino,h5FullPathDINONV,dataPath)
+            backbone = func_vpr.loadDINONV(cfg_dino, dino_nv_checkpoint,device="cuda",feat_type="backbone")
+            func_vpr.process_DINONV(backbone,ims,cfg_dino,h5FullPathDINONV,dataPath)
             del backbone 
 
             print(f"\n \n DINONV EXTRACTED DONE at path: {h5FullPathDINONV} \n \n ")
@@ -118,8 +111,8 @@ if __name__=="__main__":
                         "rmin":0, "DAStoreFull":False, "dinov2": True, "wrap":False, "resize": True} # robohop specifc params
         
             print("DINO extraction started...")
-            dino = func.loadDINOSALAD(cfg_dino, ckpt_path=dino_salad_checkpoint, device="cuda", feat_type="full")
-            func.process_dino_salad_ft_to_h5(h5FullPathDINOSALAD,cfg_dino,ims,dino,dataDir=dataPath, device="cuda", feat_type="full", feat_return='f')
+            dino = func_vpr.loadDINOSALAD(cfg_dino, ckpt_path=dino_salad_checkpoint, device="cuda", feat_type="full")
+            func_vpr.process_dino_salad_ft_to_h5(h5FullPathDINOSALAD,cfg_dino,ims,dino,dataDir=dataPath, device="cuda", feat_type="full", feat_return='f')
             del dino 
 
         print("\n \n DINOSALAD EXTRACTED DONE \n \n ")
