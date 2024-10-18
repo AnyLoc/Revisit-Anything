@@ -73,7 +73,11 @@ For full pipeline, you need to run first 3 scripts below for pre-processing (1. 
     If you want to save the descriptors (for offline recall calculation later on), you can set `save_results` to `True` and results will automatically saved as `experiment_name_date_time` inside `{workdir}/results/global/`.
 
 Additionally:
-- The above scripts extract results for `SegVLAD-PreT` or pretrained case. If you want to run `SegVLAD-FineT` or finetuned experiments, just append the above scripts with `_finetuned` at the end. 
+- The above scripts extract results for `SegVLAD-PreT` or pretrained case. If you want to run `SegVLAD-FineT` or finetuned experiments, just append the above scripts with `_finetuned` at the end, with below exception:
+    - For step 1, you need to run `place_rec_DINO_finetuned.py` instead of `place_rec_SAM_DINO.py` and don't need to specify `method` argument. As you had already extracted SAM before, you just need finetuned DINO extraction here, so you can run:
+    ```
+    python place_rec_DINO_finetuned.py --dataset <>
+    ```
 
 
 ### TODOs:
