@@ -1,12 +1,8 @@
-import func, func_sr, func_vpr
+import func_vpr
 import numpy as np
 import matplotlib.pyplot as plt
 import h5py
 from tqdm import tqdm
-from AnyLoc.custom_datasets.baidu_dataloader import Baidu_Dataset
-from AnyLoc.custom_datasets.aerial_dataloader import Aerial
-from AnyLoc.datasets_vg import map_builder
-from AnyLoc.datasets_vg import util
 
 import time
 import sys
@@ -15,7 +11,7 @@ import sys
 
 
 import argparse
-from place_rec_global_config import datasets, experiments
+from place_rec_global_config import datasets, experiments, workdir_data
 
 
 import utm
@@ -29,7 +25,7 @@ from typing import Literal, List
 import torch
 from tkinter import *
 import matplotlib
-from AnyLoc.utilities import VLAD
+from utilities import VLAD
 from sklearn.decomposition import PCA
 import pickle
 import faiss
@@ -39,11 +35,10 @@ from importlib import reload
 # matplotlib.use('TkAgg')
 matplotlib.use('Agg') #Headless
 
-reload(func_vpr)
 
 
 # from sklearn.neighbors import NearestNeighbors
-# from sklearn.neighbors import KDTree
+from sklearn.neighbors import KDTree
 
 
 def first_k_unique_indices(ranked_indices, K):
@@ -85,9 +80,9 @@ def get_matches(matches,gt,sims,segRangeQuery,imIndsRef,n=1,method="max_sim"):
 				try:
 					sim_temp.append(np.max(sims_patch[np.where(imIndsRef[match_patch]==pred[j])[0]]))
 				except:
-					 print("index: ", i)
-					 print("pred: ", pred[j])
-					 print("imInds: ", imIndsRef[match_patch])
+					print("index: ", i)
+					print("pred: ", pred[j])
+					print("imInds: ", imIndsRef[match_patch])
 			pred = pred[np.flip(np.argsort(sim_temp))][:n]
 			preds.append(pred)
 	return preds
@@ -248,14 +243,11 @@ def aggFt(desc_path, masks, segRange, cfg,aggType, vlad = None, upsample = False
 
 
 if __name__=="__main__":
-	# See README_for_global_full.md for more details on how to run this script and what it is about. (TXDX-Later)
-	# Usage: python place_rec_global_any_dataset.py --dataset baidu --experiment exp1_global_AnyLoc_VLAD_and_local_FI_LFM_and_crit_num_matches
 
 	parser = argparse.ArgumentParser(description='Global Place Recognition on Any Dataset. See place_rec_global_config.py to see how to give arguments.')
-	parser.add_argument('--dataset', required=True, help='Dataset name') # baidu, pitts etc
-	parser.add_argument('--experiment', required=True, help='Experiment name') # ??? what for global ? ~exp1_global_AnyLoc_VLAD_and_local_FI_LFM_and_crit_num_matches~
+	parser.add_argument('--dataset', required=True, help='Dataset name') 
+	parser.add_argument('--experiment', required=True, help='Experiment name') 
 	parser.add_argument('--vocab-vlad',required=True, choices=['domain', 'map'], help='Vocabulary choice for VLAD. Options: map, domain.')
-	parser.add_argument('--debug', action='store_true', help='Not being implemented yet.')
 	args = parser.parse_args()
 
 	print(f"Vocabulary choice for VLAD (domain/map) is {args.vocab_vlad}")
@@ -271,43 +263,25 @@ if __name__=="__main__":
 	print(dataset_config)
 	print(experiment_config)
 
-	# cfg = {'rmin':0, 'desired_width':640, 'desired_height':480} # Note for later: Not using this cfg anywhere in local code currently. Should incorporate as part of local matching later.
 	cfg = dataset_config['cfg']
 
-	# if args.dataset == "pitts" or args.dataset.startswith("msls") or args.dataset == "tokyo247":
-	workdir = f'/scratch/saishubodh/segments_data/{args.dataset}/out'
+	workdir = f'{workdir_data}/{args.dataset}/out'
 	os.makedirs(workdir, exist_ok=True)
-	workdir_data = '/scratch/saishubodh/segments_data'
-	# else: 
-	#     # raise not implemented error, works only for outdoor datasets because of vlad cluster center file
-	#     raise NotImplementedError("This script works only for outdoor datasets because of vlad cluster center file")
-	#     # workdir = f'/ssd_scratch/saishubodh/segments_data/{args.dataset}/out'
-	#     # os.makedirs(workdir, exist_ok=True)
-	#     # workdir_data = '/ssd_scratch/saishubodh/segments_data'
 	save_path_results = f"{workdir}/results/"
 
-	cache_dir = '/home/saishubodh/2023/segment_vpr/SegmentMap/AnyLoc/demo/cache'
+	cache_dir = './cache'
 
-	#reading vlad clusters from cache (taken from AnyLoc anyloc_vlad_generate_colab.ipynb)
 	device = torch.device("cuda")
 	# Dino_v2 properties (parameters)
 	desc_layer: int = 31
 	desc_facet: Literal["query", "key", "value", "token"] = "value"
 	num_c: int = 32
-	# Domain for use case (deployment environment)
-	# domain: Literal["aerial", "indoor", "urban"] =  "urban" #dataset_config['domain_vlad_cluster']
-	# domain = "urban"
 	domain_prefix = dataset_config['domain_vlad_cluster'] if args.vocab_vlad == 'domain' else dataset_config['map_vlad_cluster']
-	# domain = "VPAirNVFinetuned"
 	domain = domain_prefix + "NVFinetuned"
 	ext_specifier = f"dinov2_vitg14/l{desc_layer}_{desc_facet}_c{num_c}"
-	# c_centers_file = os.path.join(cache_dir, "vocabulary", ext_specifier,
-	#                             domain, "c_centers.pt")
-	# print("NOTE: Hardcoded cluster center file: pitts_nv_c_centers.pt")
 	c_centers_file = os.path.join(cache_dir, "vocabulary", ext_specifier,
 								domain, "c_centers.pt")
-								# domain, "pitts_nv_c_centers.pt")
-	print("NOTE:  cluster center file:", c_centers_file)
+	print("cluster center file:", c_centers_file)
 	assert os.path.isfile(c_centers_file), "Cluster centers not cached!"
 	c_centers = torch.load(c_centers_file)
 	assert c_centers.shape[0] == num_c, "Wrong number of clusters!"
@@ -316,14 +290,7 @@ if __name__=="__main__":
 			cache_dir=os.path.dirname(c_centers_file))
 	# Fit (load) the cluster centers (this'll also load the desc_dim)
 	vlad.fit(None)
-	# save_path_plots = f"{workdir}/plots/{args.experiment}/"
-	# if not os.path.exists(save_path_plots):
-	#     os.makedirs(save_path_plots)
-	# print("IMPORTANT: plots being saved at ", save_path_plots, "\n WARNING: size on disk might get too big! ")
-	# # else:
-	# #     save_path_plots = None
 
-	# 0.END: Set paths and config 
 	#Load Descriptors
 	dataPath1_r = f"{workdir_data}/{args.dataset}/{dataset_config['data_subpath1_r']}/"
 	dataPath2_q = f"{workdir_data}/{args.dataset}/{dataset_config['data_subpath2_q']}/"
@@ -455,5 +422,6 @@ if __name__=="__main__":
 			# segFtVLAD1Pca  = func_vpr.apply_pca_transform_from_pkl(segFtVLAD1, pca_model_path)
 			print("DONE: PCA for reference images (50k randomly sampled segments) and saving to pickle file")
 			print(dataset_config, experiment_config)
+			print(f"vocab-vlad: {args.vocab_vlad}")
 
 

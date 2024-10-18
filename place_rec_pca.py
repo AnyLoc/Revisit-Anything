@@ -1,4 +1,4 @@
-import func, func_sr, func_vpr
+import func_vpr
 import numpy as np
 import matplotlib.pyplot as plt
 import h5py
@@ -35,11 +35,10 @@ from importlib import reload
 # matplotlib.use('TkAgg')
 matplotlib.use('Agg') #Headless
 
-reload(func_vpr)
 
 
 # from sklearn.neighbors import NearestNeighbors
-# from sklearn.neighbors import KDTree
+from sklearn.neighbors import KDTree
 
 
 def first_k_unique_indices(ranked_indices, K):
@@ -81,9 +80,9 @@ def get_matches(matches,gt,sims,segRangeQuery,imIndsRef,n=1,method="max_sim"):
 				try:
 					sim_temp.append(np.max(sims_patch[np.where(imIndsRef[match_patch]==pred[j])[0]]))
 				except:
-					 print("index: ", i)
-					 print("pred: ", pred[j])
-					 print("imInds: ", imIndsRef[match_patch])
+					print("index: ", i)
+					print("pred: ", pred[j])
+					print("imInds: ", imIndsRef[match_patch])
 			pred = pred[np.flip(np.argsort(sim_temp))][:n]
 			preds.append(pred)
 	return preds
@@ -376,7 +375,7 @@ if __name__=="__main__":
 			else:
 				adjMat1_ind = None
 
-			gd = func_vpr.seg_vlad_gpu_single(ind_matrix, idx_matrix, dino1_h5_r, r_img, segMask1_ind, c_centers, cfg, desc_dim=1536, adj_mat=adjMat1_ind)
+			gd = func_vpr.seg_vlad_gpu_single(ind_matrix, idx_matrix, dino1_h5_r, r_img, segMask1_ind, c_centers, cfg, desc_dim=desc_dim, adj_mat=adjMat1_ind)
 
 			gd = gd.to(dtype=torch.float32) # Convert to float32 for PCA to keep RAM in check
 
