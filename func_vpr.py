@@ -4,11 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import h5py
 from tqdm import tqdm
-from AnyLoc.custom_datasets.baidu_dataloader import Baidu_Dataset
-from AnyLoc.custom_datasets.aerial_dataloader import Aerial
-from AnyLoc.datasets_vg import map_builder
-from AnyLoc.datasets_vg import util
-import utm
+from dataloaders.baidu_dataloader import Baidu_Dataset
+from dataloaders.aerial_dataloader import Aerial
+#from dataloaders.datasets_vg import map_builder
+#from dataloaders.datasets_vg import util
+#import utm
 from glob import glob
 from collections import defaultdict
 import os
@@ -19,7 +19,7 @@ from typing import Literal, List
 import torch
 from tkinter import *
 import matplotlib
-from AnyLoc.utilities import VLAD
+from utilities import VLAD
 from sklearn.decomposition import PCA
 import pickle
 import faiss
@@ -29,7 +29,7 @@ from sklearn.neighbors import KDTree
 from torchvision import transforms as tvf
 
 from sam.segment_anything import sam_model_registry, SamPredictor, SamAutomaticMaskGenerator
-from AnyLoc.utilities import DinoV2ExtractFeatures
+from utilities import DinoV2ExtractFeatures
 from DINO.dino_wrapper import get_dino_pixel_wise_features_model, preprocess_frame
 
 # from FastSAM.fastsam import FastSAM, FastSAMPrompt 

@@ -42,7 +42,16 @@ Download (preprocessed) data for the steps below [here](https://universityofadel
 
 
 # Running segVLAD pipeline 
-
+## Env Setup
+We tested the environment with Python 3.8 and torch 1.11.0
+```
+conda env create -f segvlad.yaml
+conda activate segvlad
+pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
+cd sam
+pip install -e .
+```
+## Running the code
 You can get the segVLAD pipeline up and running in few easy and quick steps as follows.
 
 First, set the path where you stored datasets i.e. `workdir_data` in `place_rec_global_config.py`. Also see which experiment/dataset you want to run in `place_rec_global_config.py`. The default config we use in paper is `exp0_global_SegLoc_VLAD_PCA_o3`, i.e. nbr aggregation for order 3 with PCA. You can try out other orders with/without PCA if you'd like.

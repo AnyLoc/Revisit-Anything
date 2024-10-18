@@ -60,7 +60,7 @@ def get_gt(dataset, cfg, workdir_data, ims1_r=None, ims2_q=None, func_vpr_module
     elif dataset == "17places":
         if ims2_q is None:
             raise ValueError("ims2_q must be provided for the 17places dataset.")
-        loc_rad = 5
+        loc_rad = 15
         gt = [list(np.arange(i - loc_rad, i + loc_rad + 1)) for i in range(len(ims2_q))]
 
     elif dataset == "AmsterTime":
