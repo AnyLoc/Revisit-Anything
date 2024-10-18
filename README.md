@@ -42,7 +42,24 @@ Download (preprocessed) data for the steps below [here](https://universityofadel
 
 
 # Running segVLAD pipeline 
+## Env Setup
+We tested the environment with Python 3.8 and torch 1.11.0
+```
+conda env create -f segvlad.yaml
+conda activate segvlad
+pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 torchaudio==0.11.0 --extra-index-url https://download.pytorch.org/whl/cu113
+cd sam
+pip install -e .
+```
+For running the finetuned model you will need the following additional dependencies.
+```
+pip install pytorch_lightning==1.9.0
+pip install pytorch_metric_learning
+```
+Note:
+- Please make sure to download the packages in this order since `pytorch_lightning` can break the env. For additional info about which version of `pytorch_lightnitng` to use with torch refer to this [link](https://lightning.ai/docs/pytorch/latest/versioning.html#pytorch-support).
 
+## Running the code
 You can get the segVLAD pipeline up and running in few easy and quick steps as follows.
 
 First, set the path where you stored datasets i.e. `workdir_data` in `place_rec_global_config.py`. Also see which experiment/dataset you want to run in `place_rec_global_config.py`. The default config we use in paper is `exp0_global_SegLoc_VLAD_PCA_o3`, i.e. nbr aggregation for order 3 with PCA. You can try out other orders with/without PCA if you'd like.
@@ -64,11 +81,11 @@ For full pipeline, you need to run first 3 scripts below for pre-processing (1. 
     NOTE: You don't need to run this step on your end, they already exist in `cache` folder. You can run this if you want to generate your own cluster centers say on a new dataset.  
 3. PCA extraction after the above are done: (Choose one of domain or map, you can start out with domain first)
     ```
-    place_rec_pca.py --dataset <> --experiment <> --vocab-vlad <domain/map>
+    python place_rec_pca.py --dataset <> --experiment <> --vocab-vlad <domain/map>
     ```
 4. Main SegVLAD pipeline after all the above are done:
     ```
-    place_rec_main.py --dataset <> --experiment <> --vocab-vlad <domain/map> --save_results <True/False>
+    python place_rec_main.py --dataset <> --experiment <> --vocab-vlad <domain/map> --save-results <True/False>
     ```
     If you want to save the descriptors (for offline recall calculation later on), you can set `save_results` to `True` and results will automatically saved as `experiment_name_date_time` inside `{workdir}/results/global/`.
 
