@@ -36,8 +36,6 @@ def print_memory_usage(message):
 
 
 if __name__=="__main__":
-	# See README_for_global_full.md for more details on how to run this script and what it is about. (TXDX-Later)
-	# Usage: python place_rec_global_any_dataset.py --dataset baidu --experiment exp1_global_AnyLoc_VLAD_and_local_FI_LFM_and_crit_num_matches
 
 	parser = argparse.ArgumentParser(description='Global Place Recognition on Any Dataset. See place_rec_global_config.py to see how to give arguments.')
 	parser.add_argument('--dataset', required=True, help='Dataset name') # baidu, pitts etc
