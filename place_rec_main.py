@@ -56,7 +56,6 @@ def recall_segloc(workdir, dataset_name, experiment_config,experiment_name, segF
         sims, matches = index.search(func_vpr.normalizeFeat(segFtVLAD2.numpy()),200)
     else:
         index.add(segFtVLAD1.numpy())
-        # Should you normalize here?
         # sims, matches = index.search(segFtVLAD2.numpy(), 100)
         sims, matches = index.search(segFtVLAD2.numpy(), 200)
     # matches = matches.T[0]
@@ -83,7 +82,6 @@ def recall_segloc(workdir, dataset_name, experiment_config,experiment_name, segF
     # matches_justfirstone = matches.T[0]
     # sims =2-sims.T[0]
     max_seg_preds = func_vpr.get_matches(matches_50,gt,sims_50,segRange2,imInds1,n=5,method="max_seg_topk_wt_borda_Im")
-    # max_seg_preds = func_vpr.get_matches_old(matches,gt,sims,segRange2,imInds1,n=5,method="max_seg")
     max_seg_recalls = func_vpr.calc_recall(max_seg_preds, gt, 5)
 
     print("VLAD + PCA Results \n ")
@@ -132,8 +130,6 @@ if __name__=="__main__":
     cfg = dataset_config['cfg']
 
 
-    # workdir_data = '/scratch/saishubodh/segments_data'
-    # workdir = f'/scratch/saishubodh/segments_data/{args.dataset}/out'
     workdir = f'{workdir_data}/{args.dataset}/out'
     os.makedirs(workdir, exist_ok=True)
 
