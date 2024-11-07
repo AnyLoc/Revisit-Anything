@@ -102,10 +102,6 @@ Additionally:
     ```
 
 
-### TODOs:
-- Make step 3 optional by uploading all pca models.
-- Make step 1 optional for few small datasets
-- code to replicate SALAD and all baselines
 
 
 ### Acknowledgements
