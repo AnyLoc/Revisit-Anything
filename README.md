@@ -1,4 +1,10 @@
 # Revisit Anything: Visual Place Recognition via Image Segment Retrieval (ECCV 2024)
+[![stars](https://img.shields.io/github/stars/AnyLoc/Revisit-Anything?style=social)](https://github.com/AnyLoc/Revisit-Anything/stargazers)
+[![arXiv](https://img.shields.io/badge/arXiv-2409.18049-b31b1b.svg)](https://arxiv.org/abs/2409.18049)
+[![githubio](https://img.shields.io/badge/-revisit_anything.github.io-blue?logo=Github&color=grey)](https://revisit-anything.github.io/)
+[![github](https://img.shields.io/badge/GitHub-Anyloc%2FRevisitAnything-blue?logo=Github)](https://github.com/AnyLoc/revisit-anything)
+[![YouTube](https://img.shields.io/badge/YouTube-FF0000?style=flat&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=zLXYdT4WVtQ)
+
 
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/revisit-anything-visual-place-recognition-via/visual-place-recognition-on-17-places)](https://paperswithcode.com/sota/visual-place-recognition-on-17-places?p=revisit-anything-visual-place-recognition-via)
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/revisit-anything-visual-place-recognition-via/visual-place-recognition-on-baidu-mall)](https://paperswithcode.com/sota/visual-place-recognition-on-baidu-mall?p=revisit-anything-visual-place-recognition-via)
