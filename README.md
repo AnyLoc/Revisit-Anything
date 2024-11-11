@@ -1,8 +1,11 @@
-This is the code release for our paper "Revisit Anything: Visual Place Recognition via Image Segment Retrieval (ECCV 2024)".
+# Revisit Anything: Visual Place Recognition via Image Segment Retrieval (ECCV 2024)
 
-### Revisit Anything = SAM + DINO + VPR!
-
-
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/revisit-anything-visual-place-recognition-via/visual-place-recognition-on-17-places)](https://paperswithcode.com/sota/visual-place-recognition-on-17-places?p=revisit-anything-visual-place-recognition-via)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/revisit-anything-visual-place-recognition-via/visual-place-recognition-on-baidu-mall)](https://paperswithcode.com/sota/visual-place-recognition-on-baidu-mall?p=revisit-anything-visual-place-recognition-via)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/revisit-anything-visual-place-recognition-via/visual-place-recognition-on-inside-out)](https://paperswithcode.com/sota/visual-place-recognition-on-inside-out?p=revisit-anything-visual-place-recognition-via)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/revisit-anything-visual-place-recognition-via/visual-place-recognition-on-vp-air-1)](https://paperswithcode.com/sota/visual-place-recognition-on-vp-air-1?p=revisit-anything-visual-place-recognition-via)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/revisit-anything-visual-place-recognition-via/visual-place-recognition-on-amstertime)](https://paperswithcode.com/sota/visual-place-recognition-on-amstertime?p=revisit-anything-visual-place-recognition-via)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/revisit-anything-visual-place-recognition-via/visual-place-recognition-on-pittsburgh-30k)](https://paperswithcode.com/sota/visual-place-recognition-on-pittsburgh-30k?p=revisit-anything-visual-place-recognition-via)
 
 # Dataset
 ## Dataset Download
