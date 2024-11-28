@@ -31,10 +31,16 @@ from torchvision import transforms as tvf
 from sam.segment_anything import sam_model_registry, SamPredictor, SamAutomaticMaskGenerator
 from utilities import DinoV2ExtractFeatures
 from DINO.dino_wrapper import get_dino_pixel_wise_features_model, preprocess_frame
-
+import importlib
+# vlad_buff = importlib.import_module("VLAD-BuFF")
+# from VLAD-BuFF.vpr_model import VPRModel
+# from SALAD.vpr_model import VPRModel as VPRModelSalad
 # from FastSAM.fastsam import FastSAM, FastSAMPrompt 
 # from FastSAM.utils.tools import convert_box_xywh_to_xyxy
-
+import sys 
+sys.path.append('VLAD-BuFF')
+# import utils
+import vpr_model
 import torch.nn.functional as F
 # matplotlib.use('TkAgg')
 workdir = '/media/kartik/data/kartik/data/segrec/out'
@@ -1668,3 +1674,179 @@ def normalizeFeat(rfts):
     rfts = np.array(rfts).reshape([len(rfts),-1])
     rfts /= np.linalg.norm(rfts,axis=1)[:,None]
     return rfts
+
+from argparse import Namespace
+def loadDINONV(cfg, ckpt_path, device="cuda:0", feat_type ='agg'):
+    agg_config = {
+            "expName": "dnv2_NV",
+            "useFC": False,
+            "fc_output_dim": 0,
+            "nv_pca": None,
+            "nv_pca_alt": False,
+            "antiburst": False,
+            "nv_pca_randinit": False,
+            "dim": 768,
+            "clusters_num": 64,
+            "ab_w": 8,
+            "ab_b": 7,
+            "ab_p": 1.0,
+            "ab_testOnly": False,
+            "ab_soft": False,
+            "ab_relu": False,
+            "ab_inv": False,
+            "ab_gen": 0,
+            "ab_t": None,
+            "ab_kp": None,
+            "ab_wOnly": False,
+            "ab_fixed": False,
+            "ab_allFreezeButAb": False,
+            "num_workers": 10,
+            "infer_batch_size": 16,
+            "device": device,
+            "initialize_clusters": False,
+            "l2": 'none',
+            "wpca": False,}
+    args = Namespace(**agg_config)
+    # import ipdb;ipdb.set_trace()
+    model = vpr_model.VPRModel(
+        backbone_arch='dinov2_vitb14',
+        backbone_config={
+            "num_trainable_blocks": 4,
+            "return_token": False,
+            "norm_layer": True,
+        },
+        agg_arch='netvlad',
+        agg_config = args,
+            
+        args=args,
+    )
+
+    
+    checkpoint = torch.load(ckpt_path)
+    model.load_state_dict(checkpoint["state_dict"])
+    
+    model = model.eval()
+    model = model.to("cuda:0")
+    # import pdb;pdb.set_trace()
+    # print(f"Loaded model from {args.resume_train} Successfully!")
+    if feat_type=="backbone":
+        return model.backbone
+    if feat_type=="agg":
+        return model.aggregator
+    else:
+        return model
+
+def process_DINONV(model,ims,cfg,h5FullPath,dataPath):
+    # imFts_pix =[]
+# imFts2_tok =[]
+    # imFts2_agg = []
+    # imFts2_full=[]
+    with h5py.File(h5FullPath, "w") as f:
+
+        for i in tqdm(range(len(ims))):
+            im = cv2.imread(f'{dataPath}/{ims[i]}')[cfg['rmin']:,:,:]
+            im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+            img_p = cv2.resize(im, (cfg['desired_width'],cfg['desired_height']))
+            base_tf = tvf.Compose([tvf.ToTensor(),
+                                #    tvf.CenterCrop(224),
+                    tvf.Normalize(mean=[0.485, 0.456, 0.406], 
+                                    std=[0.229, 0.224, 0.225])])
+            with torch.no_grad():
+                img_pt = base_tf(img_p).to("cuda:0")
+                # Make image patchable (14, 14 patches)
+                c, h, w = img_pt.shape
+                h_reduced, w_reduced = h // 14, w // 14
+                h_new, w_new = h_reduced * 14, w_reduced * 14
+                img_pt = tvf.CenterCrop((h_new, w_new))(img_pt)[None, ...]
+                feat=model(img_pt)
+                # imFts_pix.append(feat.cpu().numpy())
+                # imFts2_tok.append(dummy_out_backbone[1].cpu().numpy())
+                # imFts2_agg.append(aggregator(dummy_out_backbone).cpu().numpy())
+                # imFts2_full.append(model(img_pt).cpu().numpy())
+                grp = f.create_group(f"{ims[i]}")
+                grp.create_dataset("ift_dino", data=feat.detach().cpu().numpy())
+
+
+def loadDINOSALAD(cfg, ckpt_path, device="cuda;0", feat_type ='backbone'):
+    model = vpr_model.VPRModel(
+        backbone_arch='dinov2_vitb14',
+        backbone_config={
+            'num_trainable_blocks': 4,
+            'return_token': True,
+            'norm_layer': True,
+        },
+        agg_arch='SALAD',
+        agg_config={
+            'num_channels': 768,
+            'num_clusters': 64,
+            'cluster_dim': 128,
+            'token_dim': 256,
+        },
+    )
+    # import pdb;pdb.set_trace()
+    model.load_state_dict(torch.load(ckpt_path))
+    model = model.eval()
+    # import pdb;pdb.set_trace()
+    model = model.to(device)
+    print(f"Loaded model from {ckpt_path} Successfully!")
+    if feat_type=="backbone":
+        return model.backbone
+    else:
+        return model
+    
+def getSALADFt(img, extractor, device='cuda:0',upsample=True, feat_type="backbone", feat_return = "f"):
+    base_tf = tvf.Compose([tvf.ToTensor(),
+                        #    tvf.CenterCrop(224),
+        tvf.Normalize(mean=[0.485, 0.456, 0.406], 
+                        std=[0.229, 0.224, 0.225])])
+    with torch.no_grad():
+        img_pt = base_tf(img).to(device)
+        # Make image patchable (14, 14 patches)
+        c, h, w = img_pt.shape
+        h_reduced, w_reduced = h // 14, w // 14
+        h_new, w_new = h_reduced * 14, w_reduced * 14
+        img_pt = tvf.CenterCrop((h_new, w_new))(img_pt)[None, ...]
+        # Extract descriptor
+        
+        if feat_type == "backbone":
+            if feat_return == 'f':
+                feat,_ = extractor(img_pt) 
+                # feat = feat.reshape(1,h_reduced,w_reduced,-1) # [1, num_patches, desc_dim]
+                # feat = feat.permute(0, 3, 1, 2)
+            elif feat_return=='t':
+                _,feat = extractor(img_pt)
+        else:
+            feat = extractor(img_pt)
+        if upsample:
+            feat = torch.nn.functional.interpolate(feat, [h,w], mode="bilinear", align_corners=True)
+    return feat
+
+def process_dino_salad_ft_to_h5(h5FullPath,cfg,ims,models,device = "cuda:0",dataDir="./", feat_type="backbone",feat_return='f'):
+    rmin = cfg['rmin']
+    with h5py.File(h5FullPath, "w") as f:
+        # loop over images and create a h5py group per image
+        # imnames = sorted(os.listdir(f'{workdir}/{datasetpath}'))
+        # for i, imname in enumerate(imnames):
+        #     im = cv2.imread(f'{workdir}/{datasetpath}/{imname}')
+        for i, _ in enumerate(tqdm(ims)):
+            if isinstance(ims[0],str):
+                imname = ims[i] 
+                # print (imname)
+                im = cv2.imread(f'{dataDir}/{imname}')[rmin:,:,:]
+            else:
+                imname, im = i, ims[i][rmin:,:,:]
+                # print (imname)
+            im_p, ift_dino = process_single_DINO_SALAD(cfg,im,models,device, feat_type=feat_type, feat_return=feat_return)
+            grp = f.create_group(f"{imname}")
+            grp.create_dataset("ift_dino", data=ift_dino.detach().cpu().numpy())
+
+def process_single_DINO_SALAD(cfg,img,models,device, feat_type = "backbone",feat_return = 'f'):
+    dino = models
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    if cfg['resize']:
+        img_p = cv2.resize(img, (cfg['desired_width'],cfg['desired_height']))
+    else : img_p =img
+    img_feat = getSALADFt(img_p, dino, device, upsample=False, feat_type=feat_type, feat_return=feat_return)
+   
+    img_feat_norm = torch.nn.functional.normalize(img_feat, dim=1)
+    return img_p, img_feat_norm
