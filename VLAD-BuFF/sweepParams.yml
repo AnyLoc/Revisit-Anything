@@ -1,0 +1,32 @@
+program: eval.py
+project: VLAD-BuFF
+entity: vpr
+method: bayes
+metric:
+  name: pitts30k_val/Recall@1
+  goal: maximize
+parameters:
+  ab_w:
+    distribution: int_uniform
+    min: 1
+    max: 100
+  ab_b:
+    distribution: int_uniform
+    min: 0
+    max: 100
+command:
+  - ${env}
+  - ../envs/vladbuff/bin/python
+  - ${program}
+  - "--resume_train"
+  - ./logs/lightning_logs/dnv2_NV/checkpoints/last.ckpt
+  - "--ckpt_state_dict"
+  - "--val_datasets"
+  - pitts30k_val
+  - "--ab_testOnly"
+  - "--ab_p"
+  - 1.0
+  - "--aggregation"
+  - NETVLAD
+  - ${args}
+

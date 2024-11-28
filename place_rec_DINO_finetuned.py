@@ -55,13 +55,13 @@ if __name__=="__main__":
     dataPath2_q = f"{workdir_data}/{args.dataset}/{dataset_config['data_subpath2_q']}/"
 
     if DINONV_extraction:
-        dino_nv_checkpoint = f"{workdir_data}/SegmentsMap_data/models/DnV2_NV/last.ckpt"
+        dino_nv_checkpoint = f"{workdir_data}/models/DnV2_NV/last.ckpt"
         # sam_checkpoint = f"{workdir_data}/SegmentsMap_data/models/FastSAM/FastSAM-x.pt"
         list_all = [
             {"dataPath": dataPath1_r, "h5FullPathDINO": f"{workdir}/{args.dataset}_r_dinoNV_{width_DINO}.h5"},
             {"dataPath": dataPath2_q, "h5FullPathDINO": f"{workdir}/{args.dataset}_q_dinoNV_{width_DINO}.h5"}]
     elif DINOSALAD_extraction:
-        dino_salad_checkpoint = f"{workdir_data}/SegmentsMap_data/models/dino_salad.ckpt"
+        dino_salad_checkpoint = f"{workdir_data}/models/dino_salad.ckpt"
         # sam_checkpoint = f"{workdir_data}/SegmentsMap_data/models/segment-anything/sam_vit_h_4b8939.pth"
         list_all = [
             {"dataPath": dataPath1_r, "h5FullPathDINO": f"{workdir}/{args.dataset}_r_dinoSALAD_{width_DINO}.h5"},
