@@ -102,38 +102,37 @@ if __name__=="__main__":
 
 
     if DINO_extraction:
-
+        cfg_dino = { "desired_width": width_DINO, "desired_height": height_DINO, "detect": 'dino', "use_sam": True, "class_threshold": 0.9, \
+                    "desired_feature": 0, "query_type": 'text', "sort_by": 'area', "use_16bit": False, "use_cuda": True,\
+                    "dino_strides": 4, "use_traced_model": False, 
+                    "rmin":0, "DAStoreFull":False, "dinov2": True, "wrap":False, "resize": True} # robohop specifc params
+    
+        print("DINO extraction started...")
+        dino = func_vpr.loadDINO(cfg_dino, device="cuda")
         for iter_dict in list_all:
             dataPath = iter_dict["dataPath"]
             ims = natsorted(os.listdir(f'{dataPath}'))
             ims = ims[ims_sidx:ims_eidx][::ims_step]
         
             h5FullPathDINO = iter_dict["h5FullPathDINO"]
-            cfg_dino = { "desired_width": width_DINO, "desired_height": height_DINO, "detect": 'dino', "use_sam": True, "class_threshold": 0.9, \
-                "desired_feature": 0, "query_type": 'text', "sort_by": 'area', "use_16bit": False, "use_cuda": True,\
-                        "dino_strides": 4, "use_traced_model": False, 
-                        "rmin":0, "DAStoreFull":False, "dinov2": True, "wrap":False, "resize": True} # robohop specifc params
-        
-            print("DINO extraction started...")
-            dino = func_vpr.loadDINO(cfg_dino, device="cuda")
             func_vpr.process_dino_ft_to_h5(h5FullPathDINO,cfg_dino,ims,dino,dataDir=dataPath)
 
         print("\n \n DINO EXTRACTED DONE \n \n ")
 
     if SAM_extraction:
+        cfg_sam = { "desired_width": width_SAM, "desired_height": height_SAM, "detect": 'dino', "use_sam": True, "class_threshold": 0.9, \
+                    "desired_feature": 0, "query_type": 'text', "sort_by": 'area', "use_16bit": False, "use_cuda": True,\
+                    "dino_strides": 4, "use_traced_model": False, 
+                    "rmin":0, "DAStoreFull":False, "dinov2": True, "wrap":False, "resize": True} # robohop specifc params
+
+        print("SAM extraction started...")
+        SAM = func_vpr.loadSAM(sam_checkpoint,cfg_sam, device="cuda")
         for iter_dict in list_all:
             dataPath = iter_dict["dataPath"]
             ims = natsorted(os.listdir(f'{dataPath}'))
             ims = ims[ims_sidx:ims_eidx][::ims_step]
 
             h5FullPathSAM = iter_dict["h5FullPathSAM"]
-            cfg_sam = { "desired_width": width_SAM, "desired_height": height_SAM, "detect": 'dino', "use_sam": True, "class_threshold": 0.9, \
-                "desired_feature": 0, "query_type": 'text', "sort_by": 'area', "use_16bit": False, "use_cuda": True,\
-                        "dino_strides": 4, "use_traced_model": False, 
-                        "rmin":0, "DAStoreFull":False, "dinov2": True, "wrap":False, "resize": True} # robohop specifc params
-
-            print("SAM extraction started...")
-            SAM = func_vpr.loadSAM(sam_checkpoint,cfg_sam, device="cuda")
             func_vpr.process_SAM_to_h5(h5FullPathSAM, cfg_sam,ims,SAM,dataDir=dataPath)
             #sanity check for resizing
             # f = h5py.File(h5FullPathSAM,'r')

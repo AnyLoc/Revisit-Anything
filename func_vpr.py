@@ -659,7 +659,7 @@ def process_dino_ft_to_h5(h5FullPath,cfg,ims,models,device = "cuda",dataDir="./"
                 imname, im = i, ims[i][rmin:,:,:]
             im_p, ift_dino = process_single_DINO(cfg,im,models,device)
             grp = f.create_group(f"{imname}")
-            grp.create_dataset("ift_dino", data=ift_dino.detach().cpu().numpy())
+            grp.create_dataset("ift_dino", data=ift_dino.detach().cpu().numpy(), chunks=True)
 
 def process_SAM_to_h5(h5FullPath,cfg,ims,models,device="cuda",dataDir="./"):
     rmin = cfg['rmin']
