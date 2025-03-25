@@ -24,9 +24,9 @@ Results in: SOTA Visual Place Recognition on both outdoor street-view datasets a
 
 Recognizing & retrieving these 'meaningful things' instead of the whole image enables enables: 
 
-🧭viewpoint invariance
-🖼️semantic interpretability
-🔮open-set recognition
+🧭viewpoint invariance     
+🖼️semantic interpretability     
+🔮open-set recognition    
 
 Give it a try! Follow the below instructions for quick setup!
 
