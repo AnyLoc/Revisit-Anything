@@ -13,6 +13,23 @@
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/revisit-anything-visual-place-recognition-via/visual-place-recognition-on-amstertime)](https://paperswithcode.com/sota/visual-place-recognition-on-amstertime?p=revisit-anything-visual-place-recognition-via)
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/revisit-anything-visual-place-recognition-via/visual-place-recognition-on-pittsburgh-30k)](https://paperswithcode.com/sota/visual-place-recognition-on-pittsburgh-30k?p=revisit-anything-visual-place-recognition-via)
 
+# Summary
+
+**Revisit Anything = Segment Anything (SAM) + Revisiting Places**
+1. Use SAM to decompose a place image into 'meaningful things'.
+2. DINOv2 featurizes these segments ('SuperSegments').
+3. Similarity-weighted bin counting of retrieved segments -> image retrieval
+
+Results in: SOTA Visual Place Recognition on both outdoor street-view datasets and 'out-of-distribution' datasets (Aerial, Historical, crowded Indoor, Indoor+Outdoor)!
+
+Recognizing & retrieving these 'meaningful things' instead of the whole image enables enables: 
+
+🧭viewpoint invariance
+🖼️semantic interpretability
+🔮open-set recognition
+
+Give it a try! Follow the below instructions for quick setup!
+
 # Dataset
 ## Dataset Download
 - To get the pipeline running quickly with a small dataset like 17places, you can download the required data from [this box link](https://universityofadelaide.box.com/s/199q2lpvy3psm5qgfagvh25r9c51ey6b). More details on this in [Dataset preparation](https://github.com/AnyLoc/Revisit-Anything/tree/main?tab=readme-ov-file#dataset-preparation) section.
