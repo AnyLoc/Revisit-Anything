@@ -41,7 +41,7 @@ current_time = datetime.datetime.now().strftime("%d%m%Y_%H%M%S")
 # from sklearn.neighbors import NearestNeighbors
 # from sklearn.neighbors import KDTree
 
-def recall_segloc(workdir, dataset_name, experiment_config,experiment_name, segFtVLAD1, segFtVLAD2, gt, segRange2, imInds1, map_calculate, domain, save_results=True):
+def recall_segloc(workdir, dataset_name, experiment_config,experiment_name, segFtVLAD1, segFtVLAD2, gt, segRange2, imInds1, map_calculate, domain, save_results=True, ims1_r=None, ims2_q=None, topk=5):
 
     # RECALL CALCULATION
     # if pca then d = 512 else d = 49152
@@ -66,22 +66,42 @@ def recall_segloc(workdir, dataset_name, experiment_config,experiment_name, segF
 
         if not os.path.exists(f"{out_folder}/{experiment_name}"):
             os.makedirs(f"{out_folder}/{experiment_name}")
-        
+
         pkl_file_results = f"{out_folder}/{experiment_name}/{dataset_name}_matches_sims_domain_{domain}__{experiment_config['results_pkl_suffix']}"
         data_to_save = {'sims': sims, 'matches': matches}
         # Saving the data to a pickle file
         with open(pkl_file_results, 'wb') as file:
             pickle.dump(data_to_save, file)
         print(f"Results saved to {pkl_file_results}")
-    
+
     # For  now just take 50 of those 100 matches
     sims_50 = sims[:, :50]
     matches_50 = matches[:, :50]
 
     sims_50 =2-sims_50#.T[0]
-    # matches_justfirstone = matches.T[0]
-    # sims =2-sims.T[0]
-    max_seg_preds = func_vpr.get_matches(matches_50,gt,sims_50,segRange2,imInds1,n=5,method="max_seg_topk_wt_borda_Im")
+
+    # When gt is unavailable (e.g. user-supplied dataset), substitute a dummy
+    # gt of the right length so get_matches still iterates over every query.
+    # The "max_seg_topk_wt_borda_Im" path uses only len(gt), not gt[i].
+    n_q = len(gt) if gt is not None else len(ims2_q)
+    gt_for_search = gt if gt is not None else [[] for _ in range(n_q)]
+
+    max_seg_preds = func_vpr.get_matches(matches_50,gt_for_search,sims_50,segRange2,imInds1,n=topk,method="max_seg_topk_wt_borda_Im")
+
+    if ims1_r is not None and ims2_q is not None and save_results:
+        topk_json_path = f"{workdir}/results/global/{experiment_name}/{dataset_name}_topk{topk}_filenames.json"
+        topk_pairs = {
+            ims2_q[i]: [ims1_r[int(idx)] for idx in max_seg_preds[i]]
+            for i in range(n_q)
+        }
+        with open(topk_json_path, 'w') as f:
+            json.dump(topk_pairs, f, indent=2)
+        print(f"Top-{topk} filename mapping saved to {topk_json_path}")
+
+    if gt is None:
+        print("No GT for this dataset — skipping recall/mAP. Top-k matches saved above.")
+        return None
+
     max_seg_recalls = func_vpr.calc_recall(max_seg_preds, gt, 5)
 
     print("VLAD + PCA Results \n ")
@@ -92,7 +112,7 @@ def recall_segloc(workdir, dataset_name, experiment_config,experiment_name, segF
         print(f"Mean Average Precision (mAP): {map_value}")
 
     print("Max Seg Logs: ", max_seg_recalls)
-    
+
     return max_seg_recalls
 
 if __name__=="__main__":
@@ -370,7 +390,7 @@ if __name__=="__main__":
             print(f"segFtVLAD2 tensor saved to {pkl_file_results2}")
 
         # RECALL CALCULATION
-        recall_segrec = recall_segloc(workdir, args.dataset, experiment_config, experiment_name, segFtVLAD1, segFtVLAD2, gt, segRange2, imInds1, map_calculate, domain, save_results)
+        recall_segrec = recall_segloc(workdir, args.dataset, experiment_config, experiment_name, segFtVLAD1, segFtVLAD2, gt, segRange2, imInds1, map_calculate, domain, save_results, ims1_r=ims1_r, ims2_q=ims2_q, topk=topk_value)
         print("VLAD + PCA RESULTS for segloc for dataset config: ", dataset_config, " ::: experiment config ::: ", experiment_config, " using pca file : ", pca_model_path, "experiment_name: ", experiment_name)
         print(recall_segrec)
 

@@ -2,7 +2,7 @@
 # See README for more details on how to set the paths/expt configs in this script.
 
 # Step 0: set the parent path of where all datasets lie
-workdir_data = '/home/kartikgarg/workdir'
+workdir_data = '/home/ubuntu/search-data'
 
 # Step 1: Set Dataset specific configurations
 datasets = {
@@ -18,6 +18,19 @@ datasets = {
         "cfg": {'rmin': 0, 'desired_width': 640, 'desired_height': 480}, 
         "map_vlad_cluster": "baidu",
         "domain_vlad_cluster": "indoor",
+    },
+    "my_data": {
+        "masks_h5_filename_r": "my_data_r_masks_320.h5",
+        "masks_h5_filename_q": "my_data_q_masks_320.h5",
+        "dino_h5_filename_r":   "my_data_r_dino_640.h5",
+        "dino_h5_filename_q":   "my_data_q_dino_640.h5",
+        "dinoNV_h5_filename_r": "my_data_r_dinoNV_640.h5",
+        "dinoNV_h5_filename_q": "my_data_q_dinoNV_640.h5",
+        "data_subpath1_r": "ref_images",
+        "data_subpath2_q": "query_images",
+        "cfg": {'rmin': 0, 'desired_width': 640, 'desired_height': 320},
+        "domain_vlad_cluster": "indoor",
+        "map_vlad_cluster": "my_data",
     },
     "17places": {
         "masks_h5_filename_r":       "17places_r_masks_320.h5",
