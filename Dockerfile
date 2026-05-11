@@ -1,12 +1,12 @@
-# Revisit-Anything (SegVLAD) build image.
-# Modernized to mirror VLAD-BuFF/environment.yml: Python 3.10, torch 2.1.0+cu121,
-# pytorch-lightning 2.1.2. Required for Ada-generation GPUs (sm_89, e.g. L4),
-# which have no kernels in torch 1.11/cu113. The upstream segvlad.yaml (py38,
-# cuda10.2) is not reusable as-is and is superseded by the in-tree VLAD-BuFF
-# config.
+# Revisit-Anything (SegVLAD) + DetectorFreeSfM combined build image.
+# Base: CUDA 12.1 / cuDNN 8 (devel) on Ubuntu 22.04. CUDA 12.1 is required for
+# Ada-generation GPUs (sm_89, e.g. L4), which have no kernels in torch 1.11/cu113.
+# Python 3.10 + torch 2.1.0+cu121 lives in the `segvlad` conda env and is shared
+# by both Revisit-Anything and the DetectorFreeSfM submodule.
 #
-# Build from the repo root:
-#   docker build -t revisit-anything .
+# Build (BuildKit + SSH required because SphereSfM/pycolmap are pulled from a
+# private GitHub org over git@):
+#   DOCKER_BUILDKIT=1 docker build --ssh default -t revisit-anything .
 FROM nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -14,8 +14,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
   LC_ALL=C.UTF-8 \
   PATH=/opt/conda/bin:$PATH \
   CONDA_DIR=/opt/conda \
-  PIP_NO_CACHE_DIR=1
+  PIP_NO_CACHE_DIR=1 \
+  QT_XCB_GL_INTEGRATION=xcb_egl
 
+# Base + SfM build deps (Ceres, COLMAP, Qt5, Boost, CGAL, SuiteSparse, ...).
 RUN apt-get update && apt-get install -y --no-install-recommends \
   ca-certificates \
   curl \
@@ -23,8 +25,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   git \
   bzip2 \
   build-essential \
+  cmake \
+  ninja-build \
   libgl1 \
   libglib2.0-0 \
+  libboost-program-options-dev \
+  libboost-filesystem-dev \
+  libboost-graph-dev \
+  libboost-system-dev \
+  libboost-test-dev \
+  libeigen3-dev \
+  libflann-dev \
+  libfreeimage-dev \
+  libmetis-dev \
+  libgoogle-glog-dev \
+  libgflags-dev \
+  libsqlite3-dev \
+  libglew-dev \
+  qtbase5-dev \
+  libqt5opengl5-dev \
+  libcgal-dev \
+  libopengl-dev \
+  libcgal-qt5-dev \
+  libatlas-base-dev \
+  libsuitesparse-dev \
+  openssh-client \
   && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL -o /tmp/miniconda.sh \
@@ -54,10 +79,9 @@ RUN conda create -y -n segvlad --override-channels \
 ENV CONDA_DEFAULT_ENV=segvlad \
   PATH=${CONDA_DIR}/envs/segvlad/bin:${PATH}
 
-# Pip deps: lightning + the project's runtime requirements.
-# Versions for lightning / metric-learning / torchmetrics mirror
-# VLAD-BuFF/environment.yml so the container matches a config the upstream
-# subproject already runs against. `python -m pip` to guarantee segvlad's pip.
+# Pip deps for Revisit-Anything (VLAD-BuFF) runtime. Versions for lightning /
+# metric-learning / torchmetrics mirror VLAD-BuFF/environment.yml.
+# `python -m pip` guarantees segvlad's pip.
 RUN python -m pip install \
   "setuptools<70" \
   pytorch-lightning==2.1.2 \
@@ -90,9 +114,73 @@ RUN python -m pip install \
   boto3 \
   python-dotenv
 
+# Pip deps for DetectorFreeSfM (shares the segvlad env with Revisit-Anything).
+# Mirrors submodules/DetectorFreeSfM/requirements.txt + pyproject.toml extras,
+# excluding torch (already provided by conda) and pickle5 (built into Py3.10).
+RUN python -m pip install \
+  kornia \
+  kornia-rs \
+  yacs \
+  omegaconf \
+  tenacity \
+  joblib \
+  ray==2.7.1 \
+  timm \
+  albumentations \
+  rich \
+  poetry \
+  poethepoet
 
+# Ceres Solver 2.0.0 (CUDA-enabled). CUDA_ARCH_BIN matches the target GPU
+# (sm_89 = L4). Override at build with --build-arg CUDA_ARCH_BIN=...
+ARG CERES_VERSION=2.0.0
+ARG CUDA_ARCH_BIN=8.9
+ARG CUDA_ARCHITECTURES=89
+WORKDIR /usr/src/ceres-solver
+RUN wget http://ceres-solver.org/ceres-solver-${CERES_VERSION}.tar.gz \
+  && tar -xzf ceres-solver-${CERES_VERSION}.tar.gz \
+  && mv ceres-solver-${CERES_VERSION} ceres-solver-src \
+  && rm ceres-solver-${CERES_VERSION}.tar.gz \
+  && mkdir -p ceres-solver-src/build
+WORKDIR /usr/src/ceres-solver/ceres-solver-src/build
+RUN cmake .. \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=ON \
+    -DCERES_BUILD_TESTS=OFF \
+    -DCERES_BUILD_EXAMPLES=OFF \
+    -DCERES_USE_CUDA=ON \
+    -DCERES_USE_CUBLAS=ON \
+    -DCERES_USE_CUDNN=ON \
+    -DBUILD_DOCS=OFF \
+    -DBUILD_PYTHON_MODULE=OFF \
+    -DCUDA_ARCH_BIN="${CUDA_ARCH_BIN}" \
+  && make -j$(nproc) \
+  && make install \
+  && ldconfig
+
+# SphereSfM + pycolmap (SoftRoid-Inc forks). Requires SSH at build time.
+RUN mkdir -p /code && \
+    mkdir -p /root/.ssh && \
+    ssh-keyscan github.com >> /root/.ssh/known_hosts
+
+RUN --mount=type=ssh git clone git@github.com:SoftRoid-Inc/SphereSfM.git /code/SphereSfM
+WORKDIR /code/SphereSfM
+RUN mkdir build && cd build && \
+    cmake .. -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} && \
+    make -j$(nproc) && make install
+
+RUN --mount=type=ssh git clone -b sphere-pycolmap git@github.com:SoftRoid-Inc/pycolmap.git /code/pycolmap
+WORKDIR /code/pycolmap
+RUN python -m pip install .
+
+# Source tree (Revisit-Anything + submodules/DetectorFreeSfM)
+WORKDIR /workspace/Revisit-Anything
 COPY . ./
 RUN python -m pip install -e ./sam
+
+# DetectorFreeSfM uses poethepoet tasks defined in its pyproject.toml; we install
+# poetry-managed packages directly into the segvlad env (no nested venv).
+RUN poetry config virtualenvs.create false
 
 # Datasets / model checkpoints are mounted at runtime; see
 # README "Dataset preparation" for the expected workdir_data layout.
