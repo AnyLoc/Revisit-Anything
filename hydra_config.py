@@ -6,15 +6,20 @@ class PCAConfig:
     max_segments: int = 50000
     lower_dim: int = 1024
     whiten: bool = True
-    svd_solver: Literal["auto", "full", "arpack", "randomized"] = "arpack"
+    # svd_solver: Literal["auto", "full", "arpack", "randomized"] = "arpack"
+    svd_solver: str = "arpack"
     order: Optional[int] = 3
+    min_area: int = 0
 
 @dataclass(frozen=True)
 class VLADConfig:
-    cache_dir: str = "cache"
+    cache_dir: str = "/workspace/Revisit-Anything/cache"
     number_clusters: int = 32
     desc_layer: int = 31
-    desc_facet: Literal["query", "key", "value", "token"] = "value"
+    # desc_facet: Literal["query", "key", "value", "token"] = "value"
+    desc_facet: str = "value"
+    desc_dim: int = 1536
+
     domain: str = "indoor"
 
 @dataclass
@@ -28,8 +33,10 @@ class Config:
     sam_checkpoint: str = "/home/ubuntu/search-data/models/segment-anything/sam_vit_h_4b8939.pth"
     dino_model: str = "dinov2_vitg14"
 
-    global_method_name: Literal["SegLoc", "VLAD", "PCA"] = "SegLoc"
+    global_method_name: str = "SegLoc"
+    # global_method_name: Literal["SegLoc", "VLAD", "PCA"] = "SegLoc"
 
+    pca_fit: bool = True
     vlad_config: VLADConfig = VLADConfig()
     pca_config: PCAConfig = PCAConfig()
 

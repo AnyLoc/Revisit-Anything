@@ -31,7 +31,7 @@ def feature_extraction(cfg, output_folder, image_folder, ims):
         return h5FullPathDINO, h5FullPathSAM
 
     # dino extraction
-    logger.info("Starting DINO extraction with the following configuration:")
+    logger.info("Starting DINO extraction")
     cfg_dino = { "desired_width": cfg.desired_width, "desired_height": cfg.desired_height, "detect": 'dino', "use_sam": True, "class_threshold": 0.9, \
                 "desired_feature": 0, "query_type": 'text', "sort_by": 'area', "use_16bit": False, "use_cuda": True,\
                 "dino_strides": 4, "use_traced_model": False, 
@@ -42,7 +42,7 @@ def feature_extraction(cfg, output_folder, image_folder, ims):
     logger.info("DINO extraction completed.")
 
     # sam extraction
-    logger.info("Starting SAM extraction with the following configuration:")
+    logger.info("Starting SAM extraction")
     cfg_sam = { "desired_width": cfg.desired_width, "desired_height": cfg.desired_height, "detect": 'dino', "use_sam": True, "class_threshold": 0.9, \
                 "desired_feature": 0, "query_type": 'text', "sort_by": 'area', "use_16bit": False, "use_cuda": True,\
                 "dino_strides": 4, "use_traced_model": False, 
@@ -86,7 +86,7 @@ def fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims):
     numSegments = func_vpr.countNumMasksInDataset(ims, masks_h5)
 
     accumulated_segments = 0
-    global_sampling_ratio = min(1, cfg.pca_max_segments/ numSegments)
+    global_sampling_ratio = min(1, cfg.pca_config.max_segments/ numSegments)
     pca = PCA(n_components=cfg.pca_config.lower_dim, whiten=cfg.pca_config.whiten, svd_solver=cfg.pca_config.svd_solver)
 
     segFtVLAD_list = [] 
@@ -95,7 +95,7 @@ def fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims):
     logger.info("Computing SegLoc for all images in the dataset...")
     for r_id, r_img in tqdm(enumerate(ims), total=len(ims), desc="Processing images..."):
         # Preload all masks for the image
-        masks_seg = func_vpr.preload_masks(masks_h5, r_img)
+        masks_seg = func_vpr.preload_masks(masks_h5, r_img.name)
         imInds_ind, regInds_ind, segMask_ind = func_vpr.getIdxSingleFast(r_id,masks_seg,minArea=cfg.pca_config.min_area)
         imInds = np.concatenate((imInds, imInds_ind))
 
@@ -104,7 +104,7 @@ def fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims):
         else:
             adjMat1_ind = None
 
-        gd = func_vpr.seg_vlad_gpu_single(ind_matrix, idx_matrix, dino_h5, r_img, segMask_ind, c_centers, cfg, desc_dim=cfg.vlad_config.desc_dim, adj_mat=adjMat1_ind)
+        gd = func_vpr.seg_vlad_gpu_single(ind_matrix, idx_matrix, dino_h5, r_img.name, segMask_ind, c_centers, cfg, desc_dim=cfg.vlad_config.desc_dim, adj_mat=adjMat1_ind)
 
         gd = gd.to(dtype=torch.float32) # Convert to float32 for PCA to keep RAM in check
 

@@ -791,7 +791,7 @@ def countNumMasksInDataset(ims, masks_in):
     count = 0
     for im_name in tqdm(ims, desc="Counting num of masks in dataset"):
         # Directly constructing the path to the masks for the current image
-        mask_path = f"{im_name}/masks/"
+        mask_path = f"{im_name.name}/masks/"
         if mask_path in masks_in:
             # Assuming each key under mask_path corresponds to one mask,
             # and we can count them directly.
