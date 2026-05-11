@@ -1,0 +1,4 @@
+[submodule "submodules/DetectorFreeSfM"]
+	path = submodules/DetectorFreeSfM
+	url = git@github.com:SoftRoid-Inc/DetectorFreeSfM.git
+	branch = main
