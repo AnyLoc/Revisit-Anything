@@ -13,10 +13,10 @@ from pathlib import Path
 cs = ConfigStore.instance()
 cs.store(name="default", node=Config)
 
-@hydra.main(config_path="hydra_configs/", config_name="default")
+@hydra.main(config_name="default")
 def main(cfg: DictConfig):
     cfg = OmegaConf.structured(cfg)
-    workdir = Path(cfg.cache_dir)/cfg.dataset_name/cfg.scene_name
+    workdir = Path(cfg.dataset_base_dir)/cfg.dataset_name/cfg.scene_name
     output_folder = workdir/f"outputs"
     image_folder = workdir/"images"
     image_feature_dict_folder = output_folder/"image_feature_dicts"

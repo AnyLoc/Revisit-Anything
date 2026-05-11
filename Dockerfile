@@ -84,7 +84,9 @@ RUN python -m pip install \
   utm \
   wandb \
   psutil \
-  prettytable
+  prettytable \
+  hydra-core \
+  loguru
 
 
 COPY . ./
