@@ -42,6 +42,7 @@ sys.path.append('VLAD-BuFF')
 # import utils
 import vpr_model
 import torch.nn.functional as F
+from pathlib import Path
 # matplotlib.use('TkAgg')
 workdir = '/media/kartik/data/kartik/data/segrec/out'
 workdir_data = '/media/kartik/data/kartik/data/segrec/'
@@ -652,9 +653,9 @@ def process_dino_ft_to_h5(h5FullPath,cfg,ims,models,device = "cuda",dataDir="./"
         # for i, imname in enumerate(imnames):
         #     im = cv2.imread(f'{workdir}/{datasetpath}/{imname}')
         for i, _ in enumerate(tqdm(ims)):
-            if isinstance(ims[0],str):
-                imname = ims[i] 
-                im = cv2.imread(f'{dataDir}/{imname}')[rmin:,:,:]
+            if isinstance(ims[0],Path):
+                imname = ims[i] .name
+                im = cv2.imread(str(ims[i]))[rmin:,:,:]
             else:
                 imname, im = i, ims[i][rmin:,:,:]
             im_p, ift_dino = process_single_DINO(cfg,im,models,device)
@@ -665,9 +666,9 @@ def process_SAM_to_h5(h5FullPath,cfg,ims,models,device="cuda",dataDir="./"):
     rmin = cfg['rmin']
     with h5py.File(h5FullPath, "w") as f:
         for i, _ in enumerate(tqdm(ims)):
-            if isinstance(ims[0],str):
-                imname = ims[i] 
-                im = cv2.imread(f'{dataDir}/{imname}')[rmin:,:,:]
+            if isinstance(ims[0],Path):
+                imname = ims[i].name
+                im = cv2.imread(str(ims[i]))[rmin:,:,:]
             else:
                 imname, im = i, ims[i][rmin:,:,:]
             im_p, masks = process_single_SAM(cfg,im,models,device)

@@ -1,0 +1,46 @@
+import hydra
+from omegaconf import DictConfig, OmegaConf
+from hydra.core.config_store import ConfigStore
+from hydra_config import Config
+
+import func_vpr
+from loguru import logger
+from natsort import natsorted
+from pathlib import Path
+
+
+
+cs = ConfigStore.instance()
+cs.store(name="default", node=Config)
+
+@hydra.main(config_path="hydra_configs/", config_name="default")
+def main(cfg: DictConfig):
+    cfg = OmegaConf.structured(cfg)
+    workdir = Path(cfg.cache_dir)/cfg.dataset_name/cfg.scene_name
+    output_folder = workdir/f"outputs"
+    image_folder = workdir/"images"
+    image_feature_dict_folder = output_folder/"image_feature_dicts"
+    # TODO start end step for ims
+    ims_sidx, ims_eidx, ims_step = 0, None, 1
+
+
+
+    # fastsam extraction
+    # dino extraction
+    logger.info("Starting DINO extraction with the following configuration:")
+    cfg_dino = { "desired_width": cfg.desired_width, "desired_height": cfg.desired_height, "detect": 'dino', "use_sam": True, "class_threshold": 0.9, \
+                "desired_feature": 0, "query_type": 'text', "sort_by": 'area', "use_16bit": False, "use_cuda": True,\
+                "dino_strides": 4, "use_traced_model": False, 
+                "rmin":0, "DAStoreFull":False, "dinov2": True, "wrap":False, "resize": True} # robohop specifc params
+    dino_model = func_vpr.loadDINO(cfg_dino, device="cuda")
+
+    ims = natsorted(image_folder.glob("*"))
+    ims = ims[ims_sidx:ims_eidx][::ims_step]
+
+    h5FullPathDINO = image_feature_dict_folder / f"dino_{cfg.desired_width}.h5"
+    func_vpr.process_dino_ft_to_h5(h5FullPathDINO,cfg_dino,ims,dino_model,dataDir=str(image_folder))
+
+    # sam extraction
+
+if __name__ == "__main__":
+    main()
