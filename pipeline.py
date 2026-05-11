@@ -128,17 +128,32 @@ def run_subprocess(cmd, scene):
     return True
 
 
-def process_scene(scene, dataset_base_dir, dataset_name):
+def process_scene(scene, dataset_base_dir, dataset_name, topn=10):
+    workdir = Path(dataset_base_dir) / dataset_name / scene
+    t_start = logger.now()
     rev_cmd = [
         sys.executable, "revisit-anything.py",
         f"dataset_base_dir={dataset_base_dir}",
         f"dataset_name={dataset_name}",
         f"scene_name={scene}",
+        f"top_n={topn}",
     ]
+
     if not run_subprocess(rev_cmd, scene):
         return False
 
-    bench_cmd = [sys.executable, "benchmark.py", f"scene_name={scene}"]
+    t_end = logger.now()
+    logger.info(f"[process] {scene}: revisit-anything.py took {(t_end - t_start).total_seconds():.1f}s")
+    with open(str(workdir / "revisit-anything.time.txt"), "w") as f:
+        f.write(f"{(t_end - t_start).total_seconds():.1f}\n")
+
+    bench_cmd = [sys.executable, "submodules/DetectorFreeSfM/benchmark.py", 
+        f"dataset_base_dir={dataset_base_dir}",
+        f"dataset_name={dataset_name}",
+        f"scene_name={scene}",
+        f"matcher_cfg.img_pair_strategy=pair_from_index",
+        f"img_pair_txt={str(workdir)}/outputs/pairs_top{topn}.txt",
+    ]
     return run_subprocess(bench_cmd, scene)
 
 
@@ -150,6 +165,7 @@ def main(
     dataset_name: str = typer.Option("search-data", "--dataset-name"),
     queue_size: int = typer.Option(2, "--queue-size", min=1, help="how many scenes to download ahead"),
     download_workers: int = typer.Option(8, "--download-workers", min=1, help="parallel file downloads per scene"),
+    topn: int = typer.Option(10, "--topn", min=1, help="Top-N matches per image for revisit-anything.py"),
     env_file: Path = typer.Option(REPO_ROOT / ".env", "--env-file", help="dotenv file with AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, ...)"),
 ):
     if env_file.is_file():
@@ -181,7 +197,7 @@ def main(
         scene = q.get()
         if scene is SENTINEL:
             break
-        if process_scene(scene, dataset_base_dir, dataset_name):
+        if process_scene(scene, dataset_base_dir, dataset_name, topn):
             ok_count += 1
         else:
             fail_count += 1
