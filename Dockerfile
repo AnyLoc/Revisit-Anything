@@ -4,9 +4,11 @@
 # Python 3.10 + torch 2.1.0+cu121 lives in the `segvlad` conda env and is shared
 # by both Revisit-Anything and the DetectorFreeSfM submodule.
 #
-# Build (BuildKit + SSH required because SphereSfM/pycolmap are pulled from a
-# private GitHub org over git@):
-#   DOCKER_BUILDKIT=1 docker build --ssh default -t revisit-anything .
+# SphereSfM / pycolmap are vendored as git submodules under submodules/. Make
+# sure to `git submodule update --init --recursive` before building.
+#
+# Build:
+#   docker build -t revisit-anything .
 FROM nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -49,7 +51,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libcgal-qt5-dev \
   libatlas-base-dev \
   libsuitesparse-dev \
-  openssh-client \
   && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL -o /tmp/miniconda.sh \
@@ -158,18 +159,16 @@ RUN cmake .. \
   && make install \
   && ldconfig
 
-# SphereSfM + pycolmap (SoftRoid-Inc forks). Requires SSH at build time.
-RUN mkdir -p /code && \
-    mkdir -p /root/.ssh && \
-    ssh-keyscan github.com >> /root/.ssh/known_hosts
-
-RUN --mount=type=ssh git clone git@github.com:SoftRoid-Inc/SphereSfM.git /code/SphereSfM
+# SphereSfM + pycolmap (SoftRoid-Inc forks, vendored as submodules). Copied
+# independently from the rest of the source so that edits in Revisit-Anything
+# don't invalidate these expensive build layers.
+COPY submodules/SphereSfM /code/SphereSfM
 WORKDIR /code/SphereSfM
 RUN mkdir build && cd build && \
     cmake .. -DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES} && \
     make -j$(nproc) && make install
 
-RUN --mount=type=ssh git clone -b sphere-pycolmap git@github.com:SoftRoid-Inc/pycolmap.git /code/pycolmap
+COPY submodules/pycolmap /code/pycolmap
 WORKDIR /code/pycolmap
 RUN python -m pip install .
 
