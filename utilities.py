@@ -220,10 +220,7 @@ class DinoV2ExtractFeatures:
     """
         Extract features from an intermediate layer in Dino-v2
     """
-    # def __init__(self, dino_model: _DINO_V2_MODELS, layer: int, 
-                # facet: _DINO_FACETS="token", use_cls=False, 
-                # norm_descs=True, device: str = "cpu") -> None:
-    def __init__(self, dino_model_path: str, dino_model: _DINO_V2_MODELS, layer: int, 
+    def __init__(self, dino_model: _DINO_V2_MODELS, layer: int, 
                 facet: _DINO_FACETS="token", use_cls=False, 
                 norm_descs=True, device: str = "cpu") -> None:
         """
@@ -239,10 +236,9 @@ class DinoV2ExtractFeatures:
             - device:   PyTorch device to use
         """
         self.vit_type: str = dino_model
-        # self.dino_model: nn.Module = torch.hub.load(
-                # 'facebookresearch/dinov2', dino_model)
-        self.dino_model: nn.Module = torch.load(dino_model_path, dino_model, map_location=device, source="local")
         self.device = torch.device(device)
+        self.dino_model: nn.Module = torch.hub.load(
+                'facebookresearch/dinov2', dino_model)
         self.dino_model = self.dino_model.eval().to(self.device)
         self.layer: int = layer
         self.facet = facet
