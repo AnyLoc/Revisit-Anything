@@ -86,7 +86,9 @@ RUN python -m pip install \
   psutil \
   prettytable \
   hydra-core \
-  loguru
+  loguru \
+  boto3 \
+  python-dotenv
 
 
 COPY . ./
