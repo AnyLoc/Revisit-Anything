@@ -528,9 +528,12 @@ def loadSAM_FastSAM(fastsam_checkpoint, cfg, device = 'cuda'):
     return model 
 
 
-def loadDINO(cfg, device = "cuda"):
+def loadDINO(cfg, dino_checkpoint, device = "cuda"):
     if cfg['dinov2']:
-        dino = DinoV2ExtractFeatures("dinov2_vitg14", 31, 'value', device='cuda',norm_descs=False)
+        # split checkpoint into name and parent path
+        dino_path = Path(dino_checkpoint)
+        dino = DinoV2ExtractFeatures(str(dino_path.parent), dino_path.name,
+                                     31, 'value', device='cuda',norm_descs=False)
     else:
         dino = get_dino_pixel_wise_features_model(cfg = cfg, device = device)    
 

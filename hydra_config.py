@@ -10,3 +10,4 @@ class Config:
     desired_width: int = 640
     desired_height: int = 320
     sam_checkpoint: str = "/home/ubuntu/search-data/models/segment-anything/sam_vit_h_4b8939.pth"
+    dino_checkpoint: str = "/home/ubuntu/search-data/models/DINO/dinov2_vitg14/dinov2_vitg14.pth"

@@ -20,7 +20,7 @@ def main(cfg: DictConfig):
     output_folder = workdir/f"outputs"
     image_folder = workdir/"images"
     image_feature_dict_folder = output_folder/"image_feature_dicts"
-    image_folder.mkdir(parents=True, exist_ok=True)
+    image_feature_dict_folder.mkdir(parents=True, exist_ok=True)
 
     # TODO start end step for ims
     ims_sidx, ims_eidx, ims_step = 0, None, 1
@@ -35,7 +35,7 @@ def main(cfg: DictConfig):
                 "dino_strides": 4, "use_traced_model": False, 
                 "rmin":0, "DAStoreFull":False, "dinov2": True, "wrap":False, "resize": True} # robohop specifc params
 
-    dino_model = func_vpr.loadDINO(cfg_dino, device="cuda")
+    dino_model = func_vpr.loadDINO(cfg_dino, cfg.dino_checkpoint, device="cuda")
     h5FullPathDINO = image_feature_dict_folder / f"dino_{cfg.desired_width}.h5"
     func_vpr.process_dino_ft_to_h5(h5FullPathDINO,cfg_dino,ims,dino_model,dataDir=str(image_folder))
     logger.info("DINO extraction completed.")
