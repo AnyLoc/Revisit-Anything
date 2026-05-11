@@ -13,6 +13,9 @@ import numpy as np
 import torch
 from sklearn.decomposition import PCA
 from tqdm import tqdm
+from place_rec_sfm_pairs import compute_seg_vlad
+import faiss
+import json
 
 import pickle
 
@@ -55,6 +58,10 @@ def feature_extraction(cfg, output_folder, image_folder, ims):
 
 def fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims):
     logger.info("Starting PCA model fitting with the following configuration:")
+    pca_model_path = output_folder / f"pca_model_{cfg.vlad_config.domain}.pkl"
+    if pca_model_path.is_file():
+        logger.info(f"PCA model already exists at {pca_model_path}. Loading PCA model from file.")
+        return pca_model_path
 
     dino_h5 = h5py.File(str(h5fullPathDINO), "r")
     masks_h5 = h5py.File(str(h5FullPathSAM), "r")
@@ -129,7 +136,6 @@ def fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims):
         pca.fit(segFtVLAD.numpy())
         logger.info(f"Explained variance ratio of PCA components: {pca.explained_variance_ratio_}")
         logger.info("Saving PCA model to pickle file...")
-        pca_model_path = output_folder / f"pca_model_{cfg.vlad_config.domain}.pkl"
         # elif args.vocab_vlad == 'map':
             # pca_model_path = f"{workdir}/{args.dataset}{experiment_config['pca_model_pkl_map']}"
         # else:
@@ -138,7 +144,75 @@ def fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims):
         with open(pca_model_path, "wb") as file:
             pickle.dump(pca, file)
         logger.info(f"PCA model saved to {pca_model_path}")
-    return pca
+    return pca_model_path
+
+def create_pairs(pca_model_path, ims, h5fullPathDINO, h5FullPathSAM, cfg, output_folder):
+    ext_specifier = f"dinov2_vitg14/l{cfg.vlad_config.desc_layer}_{cfg.vlad_config.desc_facet}_c{cfg.vlad_config.number_clusters}"
+    c_centers_file = Path(cfg.vlad_config.cache_dir)/"vocabulary"/ext_specifier/cfg.vlad_config.domain / "c_centers.pt"
+    if not c_centers_file.is_file():
+        logger.error(f"Cluster centers not found: {c_centers_file}")
+        raise FileNotFoundError(f"Cluster centers not found: {c_centers_file}")
+    c_centers = torch.load(c_centers_file)
+    if c_centers.shape[0] != cfg.vlad_config.number_clusters:
+        logger.error(f"Number of clusters in c_centers ({c_centers.shape[0]}) does not match cfg.vlad_number_clusters ({cfg.vlad_number_clusters})")
+        raise ValueError(f"Number of clusters in c_centers ({c_centers.shape[0]}) does not match cfg.vlad_number_clusters ({cfg.vlad_number_clusters})")
+
+    dh = cfg.desired_height // 14
+    dw = cfg.desired_width // 14
+    idx_matrix = np.empty((cfg.desired_height, cfg.desired_width, 2), dtype="int32")
+    for i in range(cfg.desired_height):
+        for j in range(cfg.desired_width):
+            idx_matrix[i, j] = np.array([np.clip(i // 14, 0, dh - 1), np.clip(j // 14, 0, dw - 1)])
+    ind_matrix = np.ravel_multi_index(idx_matrix.reshape(-1, 2).T, (dh, dw))
+    ind_matrix = torch.tensor(ind_matrix, device="cuda")
+
+    feats, im_inds = compute_seg_vlad(
+        ims, h5fullPathDINO, h5FullPathSAM, c_centers, cfg,
+        ind_matrix, idx_matrix,
+        order=cfg.pca_config.order if cfg.pca_fit else 0,
+        pca_model_path=pca_model_path,
+        min_area=cfg.pca_config.min_area,
+    )
+
+    feats_np = feats.numpy()
+    if pca_model_path is not None:
+        feats_np = func_vpr.normalizeFeat(feats_np)
+    index = faiss.IndexFlatL2(feats_np.shape[1])
+    index.add(feats_np)
+    sims, matches = index.search(feats_np, cfg.seg_topk)
+    logger.info(f"faiss search: sims={sims.shape}, matches={matches.shape}")
+
+    # 3) Aggregate per-image top-(N+1) using the existing borda method,
+    #    then strip self.
+    sims_50 = 2 - sims[:, :50]
+    matches_50 = matches[:, :50]
+    seg_range = [np.where(im_inds == i)[0] for i in range(len(ims))]
+    dummy_gt = [[] for _ in range(len(ims))]
+    preds = func_vpr.get_matches(
+        matches_50, dummy_gt, sims_50, seg_range, im_inds,
+        n=cfg.top_n+ 1, method="max_seg_topk_wt_borda_Im",
+    )
+
+    pair_map = {}
+    pair_set = set()
+    for i, img in enumerate(ims):
+        nbrs = [int(j) for j in preds[i] if int(j) != i][:cfg.top_n]
+        pair_map[img.name] = [ims[j].name for j in nbrs]
+        for j in nbrs:
+            a, b = sorted([img.name, ims[j].name])
+            pair_set.add((a, b))
+
+    # 4) Write outputs
+    json_path = output_folder/ f"pairs_top{cfg.top_n}.json"
+    with open(str(json_path), "w") as f:
+        json.dump(pair_map, f, indent=2)
+    logger.info(f"Wrote {json_path}")
+
+    txt_path = output_folder / f"pairs_top{cfg.top_n}.txt"
+    with open(str(txt_path), "w") as f:
+        for a, b in sorted(pair_set):
+            f.write(f"{a} {b}\n")
+    logger.info(f"Wrote {txt_path}  ({len(pair_set)} unique pairs)")
 
 @hydra.main(config_name="default")
 def main(cfg: DictConfig):
@@ -151,10 +225,18 @@ def main(cfg: DictConfig):
     ims_sidx, ims_eidx, ims_step = 0, None, 1
     ims = natsorted(list(image_folder.glob("*")))
     ims = ims[ims_sidx:ims_eidx][::ims_step]
+    n_imgs = len(ims)
+    if n_imgs <= 2:
+        logger.warning(f"Number of images to process is {n_imgs}. Please check if the image folder {image_folder} is correct and contains the expected number of images.")
+        raise ValueError(f"Number of images to process is {n_imgs}. Please check if the image folder {image_folder} is correct and contains the expected number of images.")
+    if cfg.top_n >= n_imgs:
+        logger.warning(f"top_n is set to {cfg.top_n}, which is greater than or equal to the number of images ({n_imgs}). This may lead to unexpected behavior. Please set top_n to a value less than {n_imgs}.")
+        raise ValueError(f"top_n is set to {cfg.top_n}, which is greater than or equal to the number of images ({n_imgs}). Please set top_n to a value less than {n_imgs}.")
+
 
     h5fullPathDINO, h5FullPathSAM = feature_extraction(cfg, output_folder, image_folder, ims)
     if cfg.global_method_name == "SegLoc":
-        pca = fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims)
+        pca_model_path = fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims)
     else:
         raise NotImplementedError(f"Global method {cfg.global_method_name} not implemented in this script. Only 'SegLoc' is implemented.")
 
