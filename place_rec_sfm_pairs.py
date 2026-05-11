@@ -62,13 +62,13 @@ def compute_seg_vlad(images, dino_h5_path, masks_h5_path, c_centers, cfg,
     dino_h5 = h5py.File(dino_h5_path, "r")
     masks_h5 = h5py.File(masks_h5_path, "r")
     try:
-        for i, img_name in enumerate(tqdm(images, desc="SegVLAD")):
-            masks_seg = func_vpr.preload_masks(masks_h5, img_name)
+        for i, img_path in enumerate(tqdm(images, desc="SegVLAD")):
+            masks_seg = func_vpr.preload_masks(masks_h5, img_path.name)
             inds_i, _, seg_mask_i = func_vpr.getIdxSingleFast(i, masks_seg, minArea=min_area)
             im_inds = np.concatenate((im_inds, inds_i))
             adj = func_vpr.nbrMasksAGGFastSingle(masks_seg, order) if order else None
             gd = func_vpr.seg_vlad_gpu_single(
-                ind_matrix, idx_matrix, dino_h5, img_name, seg_mask_i,
+                ind_matrix, idx_matrix, dino_h5, img_path.name, seg_mask_i,
                 c_centers, cfg, desc_dim=1536, adj_mat=adj,
             )
             if pca_model_path is not None:

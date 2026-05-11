@@ -147,6 +147,7 @@ def fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims):
     return pca_model_path
 
 def create_pairs(pca_model_path, ims, h5fullPathDINO, h5FullPathSAM, cfg, output_folder):
+    logger.info("Start Creating pairs")
     ext_specifier = f"dinov2_vitg14/l{cfg.vlad_config.desc_layer}_{cfg.vlad_config.desc_facet}_c{cfg.vlad_config.number_clusters}"
     c_centers_file = Path(cfg.vlad_config.cache_dir)/"vocabulary"/ext_specifier/cfg.vlad_config.domain / "c_centers.pt"
     if not c_centers_file.is_file():
@@ -239,6 +240,8 @@ def main(cfg: DictConfig):
         pca_model_path = fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims)
     else:
         raise NotImplementedError(f"Global method {cfg.global_method_name} not implemented in this script. Only 'SegLoc' is implemented.")
+
+    create_pairs(pca_model_path, ims, h5fullPathDINO, h5FullPathSAM, cfg, output_folder)
 
 if __name__ == "__main__":
     main()
