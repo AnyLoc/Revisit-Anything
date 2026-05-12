@@ -74,13 +74,21 @@ if __name__=="__main__":
     if FastSAM_extraction:
         sam_checkpoint = f"{workdir_data}/models/FastSAM/FastSAM-x.pt"
         list_all = [
-            {"dataPath": dataPath1_r, "h5FullPathDINO": f"{workdir}/{args.dataset}_r_dino_{width_DINO}.h5",  "h5FullPathSAM": f"{workdir}/{args.dataset}_r_FastSAM_masks_{width_SAM}.h5"},
+            {"dataPath": dataPath1_r, 
+             "h5FullPathDINO": f"{workdir}/{args.dataset}_r_dino_{width_DINO}.h5",
+             "h5FullPathSAM": f"{workdir}/{args.dataset}_r_FastSAM_masks_{width_SAM}.h5"},
+
             {"dataPath": dataPath2_q, "h5FullPathDINO": f"{workdir}/{args.dataset}_q_dino_{width_DINO}.h5", "h5FullPathSAM": f"{workdir}/{args.dataset}_q_FastSAM_masks_{width_SAM}.h5"} ]
     else:
         sam_checkpoint = f"{workdir_data}/models/segment-anything/sam_vit_h_4b8939.pth"
         list_all = [
-            {"dataPath": dataPath1_r, "h5FullPathDINO": f"{workdir}/{args.dataset}_r_dino_{width_DINO}.h5", "h5FullPathSAM": f"{workdir}/{args.dataset}_r_masks_{width_SAM}.h5"},
-            {"dataPath": dataPath2_q, "h5FullPathDINO": f"{workdir}/{args.dataset}_q_dino_{width_DINO}.h5", "h5FullPathSAM": f"{workdir}/{args.dataset}_q_masks_{width_SAM}.h5"} ]
+            {"dataPath": dataPath1_r,
+             "h5FullPathDINO": f"{workdir}/{args.dataset}_r_dino_{width_DINO}.h5",
+             "h5FullPathSAM": f"{workdir}/{args.dataset}_r_masks_{width_SAM}.h5"},
+
+            {"dataPath": dataPath2_q,
+             "h5FullPathDINO": f"{workdir}/{args.dataset}_q_dino_{width_DINO}.h5",
+             "h5FullPathSAM": f"{workdir}/{args.dataset}_q_masks_{width_SAM}.h5"} ]
 
     if FastSAM_extraction:
         raise NotImplementedError("FastSAM extraction is not implemented in this script. To be updated soon.")

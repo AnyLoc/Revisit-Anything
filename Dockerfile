@@ -102,6 +102,7 @@ RUN python -m pip install \
   pyyaml \
   scikit-learn \
   scipy \
+  seaborn \
   tqdm \
   transformers==4.36.2 \
   typer \
@@ -109,11 +110,13 @@ RUN python -m pip install \
   utm \
   wandb \
   psutil \
+  py-cpuinfo \
   prettytable \
   hydra-core \
   loguru \
   boto3 \
-  python-dotenv
+  python-dotenv \
+  ultralytics==8.0.120
 
 # Pip deps for DetectorFreeSfM (shares the segvlad env with Revisit-Anything).
 # Mirrors submodules/DetectorFreeSfM/requirements.txt + pyproject.toml extras,
@@ -176,6 +179,11 @@ RUN python -m pip install .
 WORKDIR /workspace/Revisit-Anything
 COPY . ./
 RUN python -m pip install -e ./sam
+
+# FastSAM (vendored as submodule). The `fastsam` package is on PYTHONPATH;
+# ultralytics 8.0.120 (matching the version FastSAM was built against) is
+# installed from pip above.
+ENV PYTHONPATH=/workspace/Revisit-Anything/submodules/FastSAM:${PYTHONPATH}
 
 # DetectorFreeSfM uses poethepoet tasks defined in its pyproject.toml; we install
 # poetry-managed packages directly into the segvlad env (no nested venv).

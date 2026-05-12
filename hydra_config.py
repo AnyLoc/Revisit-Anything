@@ -32,8 +32,10 @@ class Config:
     desired_height: int = 320
 
     sam_checkpoint: str = "/home/ubuntu/search-data/models/segment-anything/sam_vit_h_4b8939.pth"
+    fastsam_checkpoint: str = "/home/ubuntu/search-data/models/segment-anything/FastSAM-x.pt"
     dino_model: str = "dinov2_vitg14"
 
+    mask_segmentation: str = "fastsam"
     # global_method_name: Literal["SegLoc", "VLAD", "PCA"] = "SegLoc"
     global_method_name: str = "SegLoc"
     pca_fit: bool = True

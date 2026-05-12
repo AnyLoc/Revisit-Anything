@@ -31,12 +31,12 @@ from torchvision import transforms as tvf
 from sam.segment_anything import sam_model_registry, SamPredictor, SamAutomaticMaskGenerator
 from utilities import DinoV2ExtractFeatures
 from DINO.dino_wrapper import get_dino_pixel_wise_features_model, preprocess_frame
+from PIL import Image
 import importlib
 # vlad_buff = importlib.import_module("VLAD-BuFF")
 # from VLAD-BuFF.vpr_model import VPRModel
 # from SALAD.vpr_model import VPRModel as VPRModelSalad
-# from FastSAM.fastsam import FastSAM, FastSAMPrompt 
-# from FastSAM.utils.tools import convert_box_xywh_to_xyxy
+from fastsam import FastSAM, FastSAMPrompt
 import sys 
 sys.path.append('VLAD-BuFF')
 # import utils
@@ -646,7 +646,7 @@ def dino_given_image(dino, ims_i, dataPath1, cfg, device="cuda"):
     return ift_dino
 
 
-def process_dino_ft_to_h5(h5FullPath,cfg,ims,models,device = "cuda",dataDir="./"):
+def process_dino_ft_to_h5(h5FullPath, cfg, ims: list[Path] | list[str], models, device = "cuda",dataDir="./"):
     rmin = cfg['rmin']
     with h5py.File(h5FullPath, "w") as f:
         # loop over images and create a h5py group per image
@@ -657,21 +657,28 @@ def process_dino_ft_to_h5(h5FullPath,cfg,ims,models,device = "cuda",dataDir="./"
             if isinstance(ims[0],Path):
                 imname = ims[i] .name
                 im = cv2.imread(str(ims[i]))[rmin:,:,:]
+            elif isinstance(ims[0],str):
+                imname = ims[i]
+                im = cv2.imread(f'{dataDir}/{imname}')[rmin:,:,:]
             else:
-                imname, im = i, ims[i][rmin:,:,:]
+                raise ValueError("ims should be a list of either Path objects or strings representing image paths.")
             im_p, ift_dino = process_single_DINO(cfg,im,models,device)
             grp = f.create_group(f"{imname}")
             grp.create_dataset("ift_dino", data=ift_dino.detach().cpu().numpy(), chunks=True)
 
-def process_SAM_to_h5(h5FullPath,cfg,ims,models,device="cuda",dataDir="./"):
+def process_SAM_to_h5(h5FullPath, cfg, ims: list[Path] | list[str], models, device="cuda",dataDir="./"):
     rmin = cfg['rmin']
     with h5py.File(h5FullPath, "w") as f:
         for i, _ in enumerate(tqdm(ims)):
             if isinstance(ims[0],Path):
                 imname = ims[i].name
                 im = cv2.imread(str(ims[i]))[rmin:,:,:]
+            elif isinstance(ims[0],str):
+                imname = ims[i]
+                im = cv2.imread(f'{dataDir}/{imname}')[rmin:,:,:]
             else:
-                imname, im = i, ims[i][rmin:,:,:]
+                raise ValueError("ims should be a list of either Path objects or strings representing image paths.")
+
             im_p, masks = process_single_SAM(cfg,im,models,device)
             grp = f.create_group(f"{imname}")
             grp.create_group("masks")
@@ -680,16 +687,18 @@ def process_SAM_to_h5(h5FullPath,cfg,ims,models,device="cuda",dataDir="./"):
                     grp["masks"].create_dataset(f"{j}/{k}", data=m[k])    
 
 
-def process_SAM_to_h5_FastSAM(h5FullPath,cfg,ims,model,device="cuda",dataDir="./"):
+def process_SAM_to_h5_FastSAM(h5FullPath, cfg, ims: list[Path] | list[str],model,device="cuda",dataDir="./"):
     rmin = cfg['rmin']
     with h5py.File(h5FullPath, "w") as f:
         for i, _ in enumerate(tqdm(ims)):
-            if isinstance(ims[0],str):
-                imname = ims[i] 
-                # im = cv2.imread(f'{dataDir}/{imname}')[rmin:,:,:]
-                im = Image.open(f'{dataDir}/{imname}')
+            if isinstance(ims[0],Path):
+                imname = ims[i].name
+                im = cv2.imread(str(ims[i]))[rmin:,:,:]
+            elif isinstance(ims[0],str):
+                imname = ims[i]
+                im = cv2.imread(f'{dataDir}/{imname}')[rmin:,:,:]
             else:
-                imname, im = i, ims[i][rmin:,:,:]
+                raise ValueError("ims should be a list of either Path objects or strings representing image paths.")
             masks = process_single_FastSAM(cfg,im,model,imname, device)
             grp = f.create_group(f"{imname}")
             grp.create_group("masks")
@@ -723,25 +732,17 @@ def process_single_FastSAM(cfg,input_image,model, imname, device="cuda", imgsz=1
     else: #if it is an empty list
         print("Empty list - no masks found for image name : ", imname)
         print("printing ann for verification: ", ann)
-
         # create a mask of two types: one with all ones and one with one random pixel set to True
         ann_numpy = np.zeros((2, cfg['desired_height'], cfg['desired_width']), dtype=bool) # careful: numpy uses oppsoite convention of opencv for h,w
-
         ann_numpy[0] = np.ones((cfg['desired_height'], cfg['desired_width']), dtype=bool) # careful: numpy uses oppsoite convention of opencv for h,w
         # ann_numpy = np.zeros((1, cfg['desired_height'], cfg['desired_width']), dtype=bool)
-        
         random_row = np.random.randint(0, cfg['desired_height'])
         random_col = np.random.randint(0, cfg['desired_width'])
-        
         # Set the randomly chosen pixel to True
         ann_numpy[1, random_row, random_col] = True
 
-
-
     # Create the list of dictionaries with segmentation masks
     masks = [{"segmentation": ann_numpy[i]} for i in range(ann_numpy.shape[0])]
-
-
     return masks  
 
 

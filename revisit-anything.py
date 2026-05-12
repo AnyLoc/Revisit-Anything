@@ -11,9 +11,12 @@ from pathlib import Path
 import h5py
 import numpy as np
 import torch
+import cv2
+from PIL import Image
 from sklearn.decomposition import PCA
 from tqdm import tqdm
 from place_rec_sfm_pairs import compute_seg_vlad
+from fastsam import FastSAM, FastSAMPrompt
 import faiss
 import json
 
@@ -28,10 +31,11 @@ def feature_extraction(cfg, output_folder, image_folder, ims):
     image_feature_dict_folder.mkdir(parents=True, exist_ok=True)
 
     h5FullPathDINO = image_feature_dict_folder / f"dino_{cfg.desired_width}.h5"
-    h5FullPathSAM = image_feature_dict_folder / f"masks_{cfg.desired_width}.h5"
-    if h5FullPathDINO.is_file() and h5FullPathSAM.is_file():
-        logger.info(f"Feature H5 files already exist at {h5FullPathDINO} and {h5FullPathSAM}. Skipping feature extraction.")
-        return h5FullPathDINO, h5FullPathSAM
+    h5FullPathMask = image_feature_dict_folder / f"masks_{cfg.desired_width}.h5"
+
+    if h5FullPathDINO.is_file() and h5FullPathMask.is_file():
+        logger.info(f"Feature H5 files already exist at {h5FullPathDINO} and {h5FullPathMask}. Skipping feature extraction.")
+        return h5FullPathDINO, h5FullPathMask
 
     # dino extraction
     logger.info("Starting DINO extraction")
@@ -45,16 +49,32 @@ def feature_extraction(cfg, output_folder, image_folder, ims):
     logger.info("DINO extraction completed.")
 
     # sam extraction
-    logger.info("Starting SAM extraction")
-    cfg_sam = { "desired_width": cfg.desired_width, "desired_height": cfg.desired_height, "detect": 'dino', "use_sam": True, "class_threshold": 0.9, \
-                "desired_feature": 0, "query_type": 'text', "sort_by": 'area', "use_16bit": False, "use_cuda": True,\
-                "dino_strides": 4, "use_traced_model": False, 
-                "rmin":0, "DAStoreFull":False, "dinov2": True, "wrap":False, "resize": True} # robohop specifc params
+    if cfg.mask_segmentation == "sam":
+        logger.info("Starting SAM extraction")
+        cfg_sam = { "desired_width": cfg.desired_width, "desired_height": cfg.desired_height, "detect": 'dino', "use_sam": True, "class_threshold": 0.9, \
+                    "desired_feature": 0, "query_type": 'text', "sort_by": 'area', "use_16bit": False, "use_cuda": True,\
+                    "dino_strides": 4, "use_traced_model": False, 
+                    "rmin":0, "DAStoreFull":False, "dinov2": True, "wrap":False, "resize": True} # robohop specifc params
 
-    SAM = func_vpr.loadSAM(cfg.sam_checkpoint, cfg_sam, device="cuda")
-    func_vpr.process_SAM_to_h5(h5FullPathSAM, cfg_sam,ims,SAM,dataDir=str(image_folder))
-    logger.info("SAM extraction completed.")
-    return h5FullPathDINO, h5FullPathSAM
+        SAM = func_vpr.loadSAM(cfg.sam_checkpoint, cfg_sam, device="cuda")
+        func_vpr.process_SAM_to_h5(h5FullPathMask, cfg_sam,ims,SAM)
+        logger.info("SAM extraction completed.")
+    elif cfg.mask_segmentation == "fastsam":
+        logger.info("Starting FastSAM extraction")
+        cfg_fastsam = { "desired_width": cfg.desired_width, "desired_height": cfg.desired_height, "detect": 'dino', "use_sam": True, "class_threshold": 0.9, \
+                    "desired_feature": 0, "query_type": 'text', "sort_by": 'area', "use_16bit": False, "use_cuda": True,\
+                    "dino_strides": 4, "use_traced_model": False,
+                    "rmin":0, "DAStoreFull":False, "dinov2": True, "wrap":False, "resize": True} # robohop specifc params
+
+        fastsam_model = func_vpr.loadSAM_FastSAM(cfg.fastsam_checkpoint, cfg_fastsam, device="cuda")
+        ims_names = [im.name for im in ims]
+        func_vpr.process_SAM_to_h5_FastSAM(h5FullPathMask, cfg_fastsam, ims_names, fastsam_model, device="cuda", dataDir=str(image_folder))
+        logger.info("FastSAM extraction completed.")
+    else:
+        logger.error(f"Unknown mask_segmentation method: {cfg.mask_segmentation}. Supported methods are 'sam' and 'fastsam'.")
+        raise ValueError(f"Unknown mask_segmentation method: {cfg.mask_segmentation}. Supported methods are 'sam' and 'fastsam'.")
+
+    return h5FullPathDINO, h5FullPathMask
 
 def fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims):
     logger.info("Starting PCA model fitting with the following configuration:")
