@@ -1,0 +1,31 @@
+# Run-time artifacts (datasets, features, run outputs) — mounted at container
+# runtime per README, never baked into the image.
+outputs/
+cache/
+
+# Python build / bytecode
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# In-tree C++ build dirs from host-side compilation. Dockerfile builds these
+# fresh inside /code/SphereSfM and /code/pycolmap.
+submodules/SphereSfM/build/
+submodules/pycolmap/build/
+
+# Git metadata
+.git/
+.gitignore
+.gitmodules
+.gitattributes
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# Misc
+*.log
+.DS_Store

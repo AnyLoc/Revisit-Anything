@@ -153,7 +153,7 @@ def process_scene(scene, dataset_base_dir, dataset_name, topn=10):
         f"dataset_base_dir={dataset_base_dir}",
         f"dataset_name={dataset_name}",
         f"scene_name={scene}",
-        f"matcher_cfg.img_pair_strategy=pair_from_index",
+        f"matcher_cfg.img_pair_strategy=pair_from_txt",
         f"matcher_cfg.img_pair_txt={str(workdir)}/outputs/pairs_top{topn}.txt",
     ]
     return run_subprocess(bench_cmd, scene)

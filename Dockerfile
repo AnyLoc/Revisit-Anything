@@ -53,8 +53,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libsuitesparse-dev \
   && rm -rf /var/lib/apt/lists/*
 
+# Pin Miniconda to a pre-shards-solver release. Newer installers ship a
+# conda-libmamba-solver with a racy SQLite shards cache that fails the env
+# create step with "database is locked".
+ARG MINICONDA_INSTALLER=Miniconda3-py311_24.11.1-0-Linux-x86_64.sh
 RUN curl -fsSL -o /tmp/miniconda.sh \
-  https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+  https://repo.anaconda.com/miniconda/${MINICONDA_INSTALLER} \
   && bash /tmp/miniconda.sh -b -p ${CONDA_DIR} \
   && rm /tmp/miniconda.sh \
   && conda clean -afy

@@ -708,12 +708,12 @@ def process_SAM_to_h5_FastSAM(h5FullPath, cfg, ims: list[Path] | list[str],model
 
 def process_single_FastSAM(cfg,input_image,model, imname, device="cuda", imgsz=1024, iou=0.9, conf=0.4, retina=True):
     
-    input_image = input_image.convert("RGB")
+    # input_image = input_image.convert("RGB")
+    img = cv2.cvtColor(input_image, cv2.COLOR_BGR2RGB)
 
     if cfg['resize']:
-        img_np = np.array(input_image)
-        img_np = cv2.resize(img_np, (cfg['desired_width'], cfg['desired_height']))
-        input_image = Image.fromarray(img_np)
+        img_p = cv2.resize(img, (cfg['desired_width'], cfg['desired_height']))
+        input_image = Image.fromarray(img_p)
     
     everything_results = model(
         input_image,

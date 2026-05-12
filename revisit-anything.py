@@ -67,8 +67,7 @@ def feature_extraction(cfg, output_folder, image_folder, ims):
                     "rmin":0, "DAStoreFull":False, "dinov2": True, "wrap":False, "resize": True} # robohop specifc params
 
         fastsam_model = func_vpr.loadSAM_FastSAM(cfg.fastsam_checkpoint, cfg_fastsam, device="cuda")
-        ims_names = [im.name for im in ims]
-        func_vpr.process_SAM_to_h5_FastSAM(h5FullPathMask, cfg_fastsam, ims_names, fastsam_model, device="cuda", dataDir=str(image_folder))
+        func_vpr.process_SAM_to_h5_FastSAM(h5FullPathMask, cfg_fastsam, ims, fastsam_model, device="cuda", dataDir=str(image_folder))
         logger.info("FastSAM extraction completed.")
     else:
         logger.error(f"Unknown mask_segmentation method: {cfg.mask_segmentation}. Supported methods are 'sam' and 'fastsam'.")
@@ -137,7 +136,7 @@ def fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims):
 
         current_batch_size = gd.shape[0]
         sample_size = int(current_batch_size * global_sampling_ratio)
-        
+
         if cfg.pca_fit:
             if sample_size > 0:
                 sample_indices = torch.randperm(current_batch_size)[:sample_size]
@@ -146,7 +145,7 @@ def fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims):
                 accumulated_segments += sampled_gd.shape[0]
         else:
             segFtVLAD_list.append(gd) #imfts_batch same as gd here, in the full image function, it is for 100 images at a time
-        
+
         if accumulated_segments >= cfg.pca_config.max_segments:
             break
     segFtVLAD = torch.cat(segFtVLAD_list, dim=0)
@@ -241,6 +240,8 @@ def main(cfg: DictConfig):
     workdir = Path(cfg.dataset_base_dir)/cfg.dataset_name/cfg.scene_name
     output_folder = workdir/f"outputs"
     image_folder = workdir/"images"
+    torch.hub.set_dir(cfg.dataset_base_dir)
+    logger.bind(scene=cfg.scene_name)
 
     # TODO start end step for ims
     ims_sidx, ims_eidx, ims_step = 0, None, 1

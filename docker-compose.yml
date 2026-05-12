@@ -1,0 +1,22 @@
+services:
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: revisit-anything
+    shm_size: "32gb"
+    volumes:
+      - /home/ubuntu/search-data:/home/ubuntu/search-data
+      - /home/ubuntu/git/Revisit-Anything:/workspace/Revisit-Anything
+      - /opt/dlami/nvme:/tmp
+    working_dir: /workspace/Revisit-Anything
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    #stdin_open: true
+    tty: true
+    command: bash
