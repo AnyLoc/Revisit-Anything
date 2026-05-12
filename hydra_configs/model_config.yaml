@@ -1,0 +1,5 @@
+eloftr:
+  weight_path: "/home/ubuntu/search-data/models/eloftr_outdoor.ckpt"
+  enable_mp: True
+  use_optimized: True
+

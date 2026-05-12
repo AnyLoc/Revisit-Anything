@@ -27,11 +27,13 @@ import typer
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from loguru import logger
+import time
 
 REPO_ROOT = Path(__file__).resolve().parent
 
 SUBDIRS = [
     ("cpu_prepro/level_and_locked_frames", "images"),
+    ("sfm/people_masks", "masks"),
     ("sfm/sfm_run_data/outputs", "colmap_reference"),
 ]
 SENTINEL = None
@@ -130,7 +132,7 @@ def run_subprocess(cmd, scene):
 
 def process_scene(scene, dataset_base_dir, dataset_name, topn=10):
     workdir = Path(dataset_base_dir) / dataset_name / scene
-    t_start = logger.now()
+    t_start = time.time()
     rev_cmd = [
         sys.executable, "revisit-anything.py",
         f"dataset_base_dir={dataset_base_dir}",
@@ -142,17 +144,17 @@ def process_scene(scene, dataset_base_dir, dataset_name, topn=10):
     if not run_subprocess(rev_cmd, scene):
         return False
 
-    t_end = logger.now()
-    logger.info(f"[process] {scene}: revisit-anything.py took {(t_end - t_start).total_seconds():.1f}s")
+    t_end = time.time()
+    logger.info(f"[process] {scene}: revisit-anything.py took {(t_end - t_start)}s")
     with open(str(workdir / "revisit-anything.time.txt"), "w") as f:
-        f.write(f"{(t_end - t_start).total_seconds():.1f}\n")
+        f.write(f"{t_end - t_start}\n")
 
     bench_cmd = [sys.executable, "submodules/DetectorFreeSfM/benchmark.py", 
         f"dataset_base_dir={dataset_base_dir}",
         f"dataset_name={dataset_name}",
         f"scene_name={scene}",
         f"matcher_cfg.img_pair_strategy=pair_from_index",
-        f"img_pair_txt={str(workdir)}/outputs/pairs_top{topn}.txt",
+        f"matcher_cfg.img_pair_txt={str(workdir)}/outputs/pairs_top{topn}.txt",
     ]
     return run_subprocess(bench_cmd, scene)
 
