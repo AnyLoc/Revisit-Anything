@@ -1,3 +1,4 @@
+import sys
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from hydra.core.config_store import ConfigStore
@@ -241,6 +242,14 @@ def main(cfg: DictConfig):
     output_folder = workdir/f"outputs"
     image_folder = workdir/"images"
     torch.hub.set_dir(cfg.dataset_base_dir)
+
+    logger.remove()
+    logger.add(sys.stderr, format="{time:HH:mm:ss} | {level: <8} | [scene={extra[scene]}] {message}")
+    logger.configure(extra={"scene": cfg.scene_name})
+
+# リクエストごとにバインドする
+    req_logger = logger.bind(req_id="REQ-999")
+
     logger.bind(scene=cfg.scene_name)
 
     # TODO start end step for ims

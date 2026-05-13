@@ -15,6 +15,7 @@ are downloaded ahead while the consumer runs revisit-anything.py then
 benchmark.py for the current scene in separate subprocesses.
 """
 
+import csv
 import queue
 import subprocess
 import sys
@@ -157,6 +158,95 @@ def process_scene(scene, dataset_base_dir, dataset_name, topn=10):
         f"matcher_cfg.img_pair_txt={str(workdir)}/outputs/pairs_top{topn}.txt",
     ]
     return run_subprocess(bench_cmd, scene)
+
+
+def sum_dfsfm_time(csv_path):
+    """Return the sum of process_time values where task_name == 'dfsfm' (seconds)."""
+    total = 0.0
+    with open(csv_path, newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if (row.get("task_name") or "").strip() == "dfsfm":
+                total += float(row["process_time"])
+    return total
+
+
+@app.command()
+def compare_times(
+    keys_file: Path = typer.Option(..., "--keys-file", exists=True, dir_okay=False, readable=True, help="txt file, one S3 key per line"),
+    bucket: str = typer.Option(..., "--bucket", help="S3 bucket name"),
+    dataset_base_dir: str = typer.Option("/home/ubuntu/", "--dataset-base-dir"),
+    dataset_name: str = typer.Option("search-data", "--dataset-name"),
+    env_file: Path = typer.Option(REPO_ROOT / ".env", "--env-file", help="dotenv file with AWS credentials"),
+):
+    """Compare dfsfm process times: S3 reference (matching + sfm) vs. local outputs."""
+    if env_file.is_file():
+        load_dotenv(env_file, override=False)
+        logger.info(f"loaded env from {env_file}")
+    else:
+        logger.warning(f"env file {env_file} not found; relying on existing environment / IAM role")
+
+    keys = read_keys(keys_file)
+    if not keys:
+        logger.error(f"no keys found in {keys_file}")
+        raise typer.Exit(code=1)
+    logger.info(f"loaded {len(keys)} keys from {keys_file}")
+
+    base_dir = Path(dataset_base_dir) / dataset_name
+    base_dir.mkdir(parents=True, exist_ok=True)
+    output_csv = base_dir / "times.csv"
+
+    s3 = boto3.client("s3")
+    rows = []
+    for key in keys:
+        try:
+            scene = scene_name_from_key(key)
+        except ValueError as e:
+            logger.error(str(e))
+            continue
+
+        scene_dir = base_dir / scene
+        matching_csv = scene_dir / "sfm" / "matching_run_data" / "process_time.csv"
+        sfm_csv = scene_dir / "sfm" / "sfm_run_data" / "process_time.csv"
+        local_csv = scene_dir / "outputs" / "process_time.csv"
+
+        try:
+            for s3_rel, dest in [
+                ("sfm/matching_run_data/process_time.csv", matching_csv),
+                ("sfm/sfm_run_data/process_time.csv", sfm_csv),
+            ]:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                s3.download_file(bucket, f"{key}/{s3_rel}", str(dest))
+        except ClientError as e:
+            logger.error(f"[{scene}] reference download failed: {e}")
+            continue
+
+        try:
+            reference_time = sum_dfsfm_time(matching_csv) + sum_dfsfm_time(sfm_csv)
+        except Exception as e:
+            logger.error(f"[{scene}] failed to parse reference CSVs: {e}")
+            continue
+
+        if not local_csv.is_file():
+            logger.warning(f"[{scene}] local {local_csv} not found; skipping")
+            continue
+        try:
+            local_time = sum_dfsfm_time(local_csv)
+        except Exception as e:
+            logger.error(f"[{scene}] failed to parse local CSV: {e}")
+            continue
+
+        logger.info(f"[{scene}] reference={reference_time:.4f}s  local={local_time:.4f}s")
+        rows.append((scene, reference_time, local_time))
+
+    with open(output_csv, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["scene_name", "reference", "local"])
+        for scene, ref, loc in rows:
+            writer.writerow([scene, f"{ref:.4f}", f"{loc:.4f}"])
+
+    logger.info(f"wrote {len(rows)} rows to {output_csv}")
+    raise typer.Exit(code=0)
 
 
 @app.command()
