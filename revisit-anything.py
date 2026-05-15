@@ -12,9 +12,12 @@ from pathlib import Path
 import h5py
 import numpy as np
 import torch
-import cv2
 from PIL import Image
+
+from sklearn import config_context
 from sklearn.decomposition import PCA
+# from cuml.decomposition import PCA as cuPCA
+
 from tqdm import tqdm
 from place_rec_sfm_pairs import compute_seg_vlad
 from fastsam import FastSAM, FastSAMPrompt
@@ -23,11 +26,34 @@ import json
 
 import pickle
 
+import contextlib
+import time
+
+
 
 cs = ConfigStore.instance()
 cs.store(name="default", node=Config)
 
-def feature_extraction(cfg, output_folder, image_folder, ims):
+class Timer:
+    def __init__(self, file_name):
+        self.file_name = file_name
+        self.timed_funcs = {}
+
+    @contextlib.contextmanager
+    def timeit_block(self, func_name):
+        start_time = time.time()
+        yield
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        logger.info(f"{func_name} took {elapsed_time:.2f} seconds")
+        self.timed_funcs[func_name] = elapsed_time
+
+    def save_times(self):
+        with open(self.file_name, "w") as f:
+            json.dump(self.timed_funcs, f, indent=2)
+        logger.info(f"Saved timing information to {self.file_name}")
+
+def feature_extraction(cfg, output_folder, image_folder, ims, timer):
     image_feature_dict_folder = output_folder/"image_feature_dicts"
     image_feature_dict_folder.mkdir(parents=True, exist_ok=True)
 
@@ -45,8 +71,9 @@ def feature_extraction(cfg, output_folder, image_folder, ims):
                 "dino_strides": 4, "use_traced_model": False, 
                 "rmin":0, "DAStoreFull":False, "dinov2": True, "wrap":False, "resize": True} # robohop specifc params
 
-    dino_model = func_vpr.loadDINO(cfg_dino, cfg.dino_model, device="cuda")
-    func_vpr.process_dino_ft_to_h5(h5FullPathDINO,cfg_dino,ims,dino_model,dataDir=str(image_folder))
+    with timer.timeit_block("DINOfeature extraction"):
+        dino_model = func_vpr.loadDINO(cfg_dino, cfg.dino_model, device="cuda")
+        func_vpr.process_dino_ft_to_h5(h5FullPathDINO,cfg_dino,ims,dino_model,dataDir=str(image_folder))
     logger.info("DINO extraction completed.")
 
     # sam extraction
@@ -67,8 +94,9 @@ def feature_extraction(cfg, output_folder, image_folder, ims):
                     "dino_strides": 4, "use_traced_model": False,
                     "rmin":0, "DAStoreFull":False, "dinov2": True, "wrap":False, "resize": True} # robohop specifc params
 
-        fastsam_model = func_vpr.loadSAM_FastSAM(cfg.fastsam_checkpoint, cfg_fastsam, device="cuda")
-        func_vpr.process_SAM_to_h5_FastSAM(h5FullPathMask, cfg_fastsam, ims, fastsam_model, device="cuda", dataDir=str(image_folder))
+        with timer.timeit_block("FastSAM feature extraction"):
+            fastsam_model = func_vpr.loadSAM_FastSAM(cfg.fastsam_checkpoint, cfg_fastsam, device="cuda")
+            func_vpr.process_SAM_to_h5_FastSAM(h5FullPathMask, cfg_fastsam, ims, fastsam_model, device="cuda", dataDir=str(image_folder))
         logger.info("FastSAM extraction completed.")
     else:
         logger.error(f"Unknown mask_segmentation method: {cfg.mask_segmentation}. Supported methods are 'sam' and 'fastsam'.")
@@ -76,7 +104,7 @@ def feature_extraction(cfg, output_folder, image_folder, ims):
 
     return h5FullPathDINO, h5FullPathMask
 
-def fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims):
+def fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims, timer):
     logger.info("Starting PCA model fitting with the following configuration:")
     pca_model_path = output_folder / f"pca_model_{cfg.vlad_config.domain}.pkl"
     if pca_model_path.is_file():
@@ -97,72 +125,81 @@ def fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims):
         logger.error(f"Number of clusters in c_centers ({c_centers.shape[0]}) does not match cfg.vlad_number_clusters ({cfg.vlad_number_clusters})")
         raise ValueError(f"Number of clusters in c_centers ({c_centers.shape[0]}) does not match cfg.vlad_number_clusters ({cfg.vlad_number_clusters})")
 
-    vlad = VLAD(cfg.vlad_config.number_clusters, desc_dim=None, cache_dir=c_centers_file.parent)
-    vlad.fit(None)
+    with timer.timeit_block("VLAD initialization"):
+        vlad = VLAD(cfg.vlad_config.number_clusters, desc_dim=None, cache_dir=c_centers_file.parent)
+        vlad.fit(None)
 
-    dh = cfg.desired_height // 14
-    dw = cfg.desired_width // 14
-    idx_matrix = np.empty((cfg.desired_height, cfg.desired_width, 2), dtype="int32")
-    for i in range(cfg.desired_height):
-        for j in range(cfg.desired_width):
-            idx_matrix[i, j] = np.array([np.clip(i // 14, 0, dh - 1), np.clip(j // 14, 0, dw - 1)])
-    ind_matrix = np.ravel_multi_index(idx_matrix.reshape(-1, 2).T, (dh, dw))
-    ind_matrix = torch.tensor(ind_matrix, device="cuda")
+        dh = cfg.desired_height // 14
+        dw = cfg.desired_width // 14
+        idx_matrix = np.empty((cfg.desired_height, cfg.desired_width, 2), dtype="int32")
+        for i in range(cfg.desired_height):
+            for j in range(cfg.desired_width):
+                idx_matrix[i, j] = np.array([np.clip(i // 14, 0, dh - 1), np.clip(j // 14, 0, dw - 1)])
+        ind_matrix = np.ravel_multi_index(idx_matrix.reshape(-1, 2).T, (dh, dw))
+        ind_matrix = torch.tensor(ind_matrix, device="cuda")
 
     logger.info("counting masks")
-    numSegments = func_vpr.countNumMasksInDataset(ims, masks_h5)
+    with timer.timeit_block("Counting total number of segments in dataset"):
+        numSegments = func_vpr.countNumMasksInDataset(ims, masks_h5)
 
-    accumulated_segments = 0
-    global_sampling_ratio = min(1, cfg.pca_config.max_segments/ numSegments)
-    pca = PCA(n_components=cfg.pca_config.lower_dim, whiten=cfg.pca_config.whiten, svd_solver=cfg.pca_config.svd_solver)
+        accumulated_segments = 0
+        global_sampling_ratio = min(1, cfg.pca_config.max_segments/ numSegments)
+        # pca = PCA(n_components=cfg.pca_config.lower_dim, whiten=cfg.pca_config.whiten, svd_solver=cfg.pca_config.svd_solver)
 
     segFtVLAD_list = [] 
     imInds = np.array([], dtype=int)
 
     logger.info("Computing SegLoc for all images in the dataset...")
-    for r_id, r_img in tqdm(enumerate(ims), total=len(ims), desc="Processing images..."):
-        # Preload all masks for the image
-        masks_seg = func_vpr.preload_masks(masks_h5, r_img.name)
-        imInds_ind, regInds_ind, segMask_ind = func_vpr.getIdxSingleFast(r_id,masks_seg,minArea=cfg.pca_config.min_area)
-        imInds = np.concatenate((imInds, imInds_ind))
+    with timer.timeit_block("Computing SegLoc features for all segments in the dataset"):
+        for r_id, r_img in tqdm(enumerate(ims), total=len(ims), desc="Processing images..."):
+            # Preload all masks for the image
+            masks_seg = func_vpr.preload_masks(masks_h5, r_img.name)
+            imInds_ind, regInds_ind, segMask_ind = func_vpr.getIdxSingleFast(r_id,masks_seg,minArea=cfg.pca_config.min_area)
+            imInds = np.concatenate((imInds, imInds_ind))
 
-        if cfg.pca_config.order:
-            adjMat1_ind = func_vpr.nbrMasksAGGFastSingle(masks_seg, cfg.pca_config.order)
-        else:
-            adjMat1_ind = None
+            if cfg.pca_config.order:
+                adjMat1_ind = func_vpr.nbrMasksAGGFastSingle(masks_seg, cfg.pca_config.order)
+            else:
+                adjMat1_ind = None
 
-        gd = func_vpr.seg_vlad_gpu_single(ind_matrix, idx_matrix, dino_h5, r_img.name, segMask_ind, c_centers, cfg, desc_dim=cfg.vlad_config.desc_dim, adj_mat=adjMat1_ind)
+            gd = func_vpr.seg_vlad_gpu_single(ind_matrix, idx_matrix, dino_h5, r_img.name, segMask_ind, c_centers, cfg, desc_dim=cfg.vlad_config.desc_dim, adj_mat=adjMat1_ind)
 
-        gd = gd.to(dtype=torch.float32) # Convert to float32 for PCA to keep RAM in check
+            gd = gd.to(dtype=torch.float32) # Convert to float32 for PCA to keep RAM in check
 
-        current_batch_size = gd.shape[0]
-        sample_size = int(current_batch_size * global_sampling_ratio)
+            current_batch_size = gd.shape[0]
+            sample_size = int(current_batch_size * global_sampling_ratio)
 
-        if cfg.pca_fit:
-            if sample_size > 0:
-                sample_indices = torch.randperm(current_batch_size)[:sample_size]
-                sampled_gd = gd[sample_indices]
-                segFtVLAD_list.append(sampled_gd)
-                accumulated_segments += sampled_gd.shape[0]
-        else:
-            segFtVLAD_list.append(gd) #imfts_batch same as gd here, in the full image function, it is for 100 images at a time
+            if cfg.pca_fit:
+                if sample_size > 0:
+                    sample_indices = torch.randperm(current_batch_size)[:sample_size]
+                    sampled_gd = gd[sample_indices]
+                    segFtVLAD_list.append(sampled_gd)
+                    accumulated_segments += sampled_gd.shape[0]
+            else:
+                segFtVLAD_list.append(gd) #imfts_batch same as gd here, in the full image function, it is for 100 images at a time
 
-        if accumulated_segments >= cfg.pca_config.max_segments:
-            break
-    segFtVLAD = torch.cat(segFtVLAD_list, dim=0)
-    del segFtVLAD_list
+            if accumulated_segments >= cfg.pca_config.max_segments:
+                break
+        segFtVLAD = torch.cat(segFtVLAD_list, dim=0)
+        del segFtVLAD_list
     if cfg.pca_fit:
-        logger.info(f"Fitting PCA model on {accumulated_segments} segments (sampled from {numSegments} total segments) with the following PCA configuration:")
-        pca.fit(segFtVLAD.numpy())
-        logger.info(f"Explained variance ratio of PCA components: {pca.explained_variance_ratio_}")
-        logger.info("Saving PCA model to pickle file...")
-        # elif args.vocab_vlad == 'map':
-            # pca_model_path = f"{workdir}/{args.dataset}{experiment_config['pca_model_pkl_map']}"
-        # else:
-            # raise ValueError(f"Unknown vocab-vlad value: {args.vocab_vlad}")
+        logger.info(f"Fitting PCA model on {accumulated_segments} segments (sampled from {numSegments} total segments)")
+        with timer.timeit_block("Fitting PCA model"):
+            logger.info(f"PCA fit: {segFtVLAD.shape}")
+            # pca = cuPCA(n_components=cfg.pca_config.lower_dim, whiten=cfg.pca_config.whiten, svd_solver=cfg.pca_config.svd_solver)
+            # with config_context(array_api_disp)
+            pca = PCA(n_components=cfg.pca_config.lower_dim, whiten=cfg.pca_config.whiten, svd_solver=cfg.pca_config.svd_solver)
+            pca.fit(segFtVLAD.numpy())
+            logger.info(f"Explained variance ratio of PCA components: {pca.explained_variance_ratio_}")
+            logger.info("Saving PCA model to pickle file...")
+            # elif args.vocab_vlad == 'map':
+                # pca_model_path = f"{workdir}/{args.dataset}{experiment_config['pca_model_pkl_map']}"
+            # else:
+                # raise ValueError(f"Unknown vocab-vlad value: {args.vocab_vlad}")
 
-        with open(pca_model_path, "wb") as file:
-            pickle.dump(pca, file)
+        with timer.timeit_block("Saving PCA model to file"):
+            with open(pca_model_path, "wb") as file:
+                pickle.dump(pca, file)
         logger.info(f"PCA model saved to {pca_model_path}")
     return pca_model_path
 
@@ -265,13 +302,16 @@ def main(cfg: DictConfig):
         raise ValueError(f"top_n is set to {cfg.top_n}, which is greater than or equal to the number of images ({n_imgs}). Please set top_n to a value less than {n_imgs}.")
 
 
-    h5fullPathDINO, h5FullPathSAM = feature_extraction(cfg, output_folder, image_folder, ims)
+    timer = Timer(file_name=output_folder / "timing_info.json")
+    h5fullPathDINO, h5FullPathSAM = feature_extraction(cfg, output_folder, image_folder, ims, timer)
     if cfg.global_method_name == "SegLoc":
-        pca_model_path = fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims)
+        pca_model_path = fit_pca_model(h5fullPathDINO, h5FullPathSAM, cfg, output_folder, ims, timer)
     else:
         raise NotImplementedError(f"Global method {cfg.global_method_name} not implemented in this script. Only 'SegLoc' is implemented.")
 
-    create_pairs(pca_model_path, ims, h5fullPathDINO, h5FullPathSAM, cfg, output_folder)
+    with timer.timeit_block("Creating pairs"):
+        create_pairs(pca_model_path, ims, h5fullPathDINO, h5FullPathSAM, cfg, output_folder)
+    timer.save_times()
 
 if __name__ == "__main__":
     main()
