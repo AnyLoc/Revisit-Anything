@@ -2,14 +2,6 @@
 	path = submodules/DetectorFreeSfM
 	url = git@github.com:SoftRoid-Inc/DetectorFreeSfM.git
 	branch = main
-[submodule "submodules/SphereSfM"]
-	path = submodules/SphereSfM
-	url = git@github.com:SoftRoid-Inc/SphereSfM.git
-	branch = main
-[submodule "submodules/pycolmap"]
-	path = submodules/pycolmap
-	url = git@github.com:SoftRoid-Inc/pycolmap.git
-  branch = sphere-pycolmap
 [submodule "submodules/FastSAM"]
 	path = submodules/FastSAM
 	url = git@github.com:CASIA-LMC-Lab/FastSAM.git
