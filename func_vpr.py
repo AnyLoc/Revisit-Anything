@@ -43,6 +43,7 @@ sys.path.append('VLAD-BuFF')
 import vpr_model
 import torch.nn.functional as F
 from pathlib import Path
+from sklearn import config_context
 # matplotlib.use('TkAgg')
 workdir = '/media/kartik/data/kartik/data/segrec/out'
 workdir_data = '/media/kartik/data/kartik/data/segrec/'
@@ -516,24 +517,13 @@ def loadSAM(sam_checkpoint, cfg, device = 'cuda'):
 
     return mask_generator
 
-def loadSAM_FastSAM(fastsam_checkpoint, cfg, device = 'cuda'):
-    model = FastSAM(fastsam_checkpoint)
-    model.to(device)  # Ensure model is moved to the appropriate device
 
-    # model_type = "vit_t"
-    # sam = mobile_sam_model_registry[model_type](checkpoint=sam_checkpoint)
-    # sam.to(device=device)
-    # mask_generator = MobileSamAutomaticMaskGenerator(sam)
-
-    return model 
-
-
-def loadDINO(cfg, dino_model, device = "cuda"):
+def loadDINO(cfg, dino_model, device="cuda"):
     if cfg['dinov2']:
         # split checkpoint into name and parent path
-        dino = DinoV2ExtractFeatures(dino_model, 31, 'value', device='cuda',norm_descs=False)
+        dino = DinoV2ExtractFeatures(dino_model, 31, 'value', device=device, norm_descs=False)
     else:
-        dino = get_dino_pixel_wise_features_model(cfg = cfg, device = device)    
+        dino = get_dino_pixel_wise_features_model(cfg=cfg, device=device)
 
     return dino
 
@@ -687,14 +677,25 @@ def process_SAM_to_h5(h5FullPath, cfg, ims: list[Path] | list[str], models, devi
                     grp["masks"].create_dataset(f"{j}/{k}", data=m[k])    
 
 
+def loadSAM_FastSAM(fastsam_checkpoint, cfg, device = 'cuda'):
+    model = FastSAM(fastsam_checkpoint)
+    model.to(device)  # Ensure model is moved to the appropriate device
+
+    # model_type = "vit_t"
+    # sam = mobile_sam_model_registry[model_type](checkpoint=sam_checkpoint)
+    # sam.to(device=device)
+    # mask_generator = MobileSamAutomaticMaskGenerator(sam)
+
+    return model 
+
 def process_SAM_to_h5_FastSAM(h5FullPath, cfg, ims: list[Path] | list[str],model,device="cuda",dataDir="./"):
     rmin = cfg['rmin']
     with h5py.File(h5FullPath, "w") as f:
         for i, _ in enumerate(tqdm(ims)):
-            if isinstance(ims[0],Path):
+            if isinstance(ims[i],Path):
                 imname = ims[i].name
                 im = cv2.imread(str(ims[i]))[rmin:,:,:]
-            elif isinstance(ims[0],str):
+            elif isinstance(ims[i],str):
                 imname = ims[i]
                 im = cv2.imread(f'{dataDir}/{imname}')[rmin:,:,:]
             else:
@@ -1065,43 +1066,30 @@ def seg_vlad_gpu(desc_path, segMask, segRange, c_centers, cfg, desc_dim = 1536, 
         return imFts
         # segfeat = torc
 
-def seg_vlad_gpu_single(ind, idx, desc_path_in, img_key, segMask, c_centers, cfg, desc_dim=1536, adj_mat=None):
-    vlad_dim = 32 * desc_dim
+def seg_vlad_gpu_single(ind, idx, desc_path_in, img_key, segMask, c_centers, cfg, desc_dim=1536, adj_mat=None, device='cuda'):
     dh = cfg['desired_height'] // 14
     dw = cfg['desired_width'] // 14
-    # idx = np.empty((cfg['desired_height'], cfg['desired_width'], 2)).astype('int32')
-    # for i in range(cfg['desired_height']):
-    #     for j in range(cfg['desired_width']):
-    #         idx[i, j] = np.array([np.clip(i//14, 0, dh-1), np.clip(j//14, 0, dw-1)])
-    # ind = np.ravel_multi_index(idx.reshape(-1, 2).T, (dh, dw))
-    # ind = torch.tensor(ind, device='cuda')
-    
-    # dino_desc = torch.from_numpy(f[img_key]['ift_dino'][()]).to('cuda')
-    # dino_desc = torch.from_numpy(np.reshape(f[img_key]['ift_dino'][()],(1,desc_dim,f[img_key]['ift_dino'][()].shape[2]*f[keys[i]]['ift_dino'][()].shape[3]))).to('cuda')
 
-    dino_desc = torch.from_numpy(desc_path_in[img_key]['ift_dino'][()]) 
-    # dino_desc = torch.nn.functional.interpolate(dino_desc, [cfg['desired_height'],cfg['desired_width']], mode="bilinear", align_corners=True)
+    dino_desc = torch.from_numpy(desc_path_in[img_key]['ift_dino'][()])
     total_elements = dino_desc.shape[2] * dino_desc.shape[3]
-    dino_desc = dino_desc.reshape(1, desc_dim, total_elements).to('cuda')
-
+    dino_desc = dino_desc.reshape(1, desc_dim, total_elements).to(device)
 
     dino_desc_norm = torch.nn.functional.normalize(dino_desc, dim=1)
 
-    #IMPORTANT: could be wrong here
-    mask = torch.from_numpy(np.array(segMask)).to('cuda')
-    mask = torch.nn.functional.interpolate(mask.float().unsqueeze(0), [cfg['desired_height'],cfg['desired_width']], mode = 'nearest').squeeze().bool().reshape(len(segMask),-1)
-    mask_idx = torch.zeros((len(segMask),dh*dw),device="cuda").bool()
+    mask = torch.from_numpy(np.array(segMask)).to(device)
+    mask = torch.nn.functional.interpolate(mask.float().unsqueeze(0), [cfg['desired_height'],cfg['desired_width']], mode='nearest').squeeze().bool().reshape(len(segMask),-1)
+    mask_idx = torch.zeros((len(segMask), dh*dw), device=device).bool()
     mask_ind_flat = torch.argwhere(mask)
-    mask_idx[mask_ind_flat[:,0],ind[mask_ind_flat[:,1]]] = True
+    mask_idx[mask_ind_flat[:,0], ind[mask_ind_flat[:,1]]] = True
 
     reg_feat_per = dino_desc_norm.permute(0, 2, 1)
+    c_centers_d = c_centers.to(device)
     if adj_mat is not None:
-        gd, execution_time = vlad_single(reg_feat_per.squeeze(), c_centers.to('cuda'), idx, mask_idx, adj_mat.to("cuda"))
+        gd, execution_time = vlad_single(reg_feat_per.squeeze(), c_centers_d, idx, mask_idx, adj_mat.to(device))
     else:
-        gd, execution_time = vlad_single(reg_feat_per.squeeze(), c_centers.to('cuda'), idx, mask_idx)
+        gd, execution_time = vlad_single(reg_feat_per.squeeze(), c_centers_d, idx, mask_idx)
 
-    return gd.cpu() 
-    # return gd.cpu() , execution_time
+    return gd.cpu()
 
 def seg_vlad_gpu_single_img(ind, idx, dino_desc, img_key, segMask, c_centers, cfg, desc_dim=1536, adj_mat=None):
     vlad_dim = 32 * desc_dim
@@ -1144,8 +1132,8 @@ def vlad_single(query_descs,c_centers,idx,masks,adj_mat=None):
     # desc_dim = 1536
     num_clusters =32
     # intra_norm = True
-    
-    c_centers_norm = F.normalize(c_centers,dim=1).to('cuda')
+
+    c_centers_norm = F.normalize(c_centers,dim=1).to(query_descs.device)
     labels = torch.argmax(query_descs @ c_centers_norm.T,dim=1)
     # labels=torch.linalg.norm(query_descs[:,None,:] - c_centers[None,:,:],axis=2).argmin(1)
     # print("labels_shape: ", labels.shape)
@@ -1419,29 +1407,16 @@ def nbrMasksAGG(segRange, segMask,mask_file, ims, order =1):
                 segMaskIm.append(segMask_agg)    
     return segMaskIm
 
-def apply_pca_transform_from_pkl(data_tensor, pca_model_path):
+def apply_pca_transform_from_pkl(data_tensor, pca_model_path, device='cuda'):
+    """Load a PCA model from pickle and transform ``data_tensor``.
+
+    Returns the transformed tensor on ``device``.
     """
-    Loads a PCA model from a pickle file and applies the transform to the given data tensor.
-
-    Parameters:
-    - data_tensor: A PyTorch tensor containing the data to be transformed.
-    - pca_model_path: Path to the pickle file containing the fitted PCA model.
-
-    Returns:
-    - A PyTorch tensor containing the transformed data.
-    """
-    # Ensure data is on CPU and converted to a NumPy array for PCA transformation
-    data_np = data_tensor.cpu().numpy()
-
-    # Load the fitted PCA model from disk
     with open(pca_model_path, "rb") as file:
         pca = pickle.load(file)
 
-    # Apply the PCA transform to the data
-    transformed_data_np = pca.transform(data_np)
-
-    # Convert the transformed data back to a PyTorch tensor
-    transformed_data_tensor = torch.from_numpy(transformed_data_np)
+    with config_context(array_api_dispatch=True):
+        transformed_data_tensor = pca.transform(data_tensor.float()).to(device)
 
     return transformed_data_tensor
 

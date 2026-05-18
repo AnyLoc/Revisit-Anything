@@ -140,6 +140,7 @@ def process_scene(scene, dataset_base_dir, dataset_name, topn=10):
         f"dataset_name={dataset_name}",
         f"scene_name={scene}",
         f"top_n={topn}",
+        f"pca_config.svd_solver=randomized",  # faster for large num_segments
     ]
 
     if not run_subprocess(rev_cmd, scene):

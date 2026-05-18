@@ -1,17 +1,25 @@
 from typing import Literal, Optional
 from dataclasses import dataclass, field
 
-@dataclass(frozen=True)
+
+@dataclass
+class RuntimeConfig:
+    device: str = "auto"              # auto | cpu | cuda | cuda:N
+    precision: str = "fp32"           # fp32 | fp16
+    faiss_backend: str = "cpu"        # cpu | gpu
+    pca_backend: str = "sklearn"      # sklearn | torch_svd
+
+@dataclass
 class PCAConfig:
     max_segments: int = 50000
     lower_dim: int = 1024
     whiten: bool = True
     # svd_solver: Literal["auto", "full", "arpack", "randomized"] = "arpack"
-    svd_solver: str = "arpack"
+    svd_solver: str = "randomized"
     order: Optional[int] = 3
     min_area: int = 0
 
-@dataclass(frozen=True)
+@dataclass
 class VLADConfig:
     cache_dir: str = "/workspace/Revisit-Anything/cache"
     number_clusters: int = 32
@@ -24,15 +32,15 @@ class VLADConfig:
 
 @dataclass
 class Config:
-    dataset_base_dir: str = "/home/ubuntu/"
-    dataset_name: str = "search-data"
+    dataset_base_dir: str = "/tmp/datasets/"
+    dataset_name: str = "current"
     scene_name: str = "0"
 
     desired_width: int = 640
     desired_height: int = 320
 
-    sam_checkpoint: str = "/home/ubuntu/search-data/models/segment-anything/sam_vit_h_4b8939.pth"
-    fastsam_checkpoint: str = "/home/ubuntu/search-data/models/segment-anything/FastSAM-x.pt"
+    sam_checkpoint: str = "/workspace/Revisit-Anything/models/segment-anything/sam_vit_h_4b8939.pth"
+    fastsam_checkpoint: str = "/workspace/Revisit-Anything/models/segment-anything/FastSAM-x.pt"
     dino_model: str = "dinov2_vitg14"
 
     mask_segmentation: str = "fastsam"
@@ -42,6 +50,7 @@ class Config:
 
     vlad_config: VLADConfig = VLADConfig()
     pca_config: PCAConfig = PCAConfig()
+    runtime: RuntimeConfig = RuntimeConfig()
 
     top_n: int = 10
     seg_topk: int = 200
