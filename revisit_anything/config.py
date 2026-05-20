@@ -21,7 +21,7 @@ class PCAConfig:
 
 @dataclass
 class VLADConfig:
-    cache_dir: str = "/workspace/Revisit-Anything/cache"
+    cache_dir: str = "Revisit-Anything/cache"
     number_clusters: int = 32
     desc_layer: int = 31
     # desc_facet: Literal["query", "key", "value", "token"] = "value"
@@ -41,7 +41,8 @@ class Config:
 
     sam_checkpoint: str = "/workspace/Revisit-Anything/models/segment-anything/sam_vit_h_4b8939.pth"
     fastsam_checkpoint: str = "/workspace/Revisit-Anything/models/segment-anything/FastSAM-x.pt"
-    dino_model: str = "dinov2_vitg14"
+    dino_checkpoint: str = "/workspace/Revisit-Anything/models/dinov2/dinov2_vitg14_pretrain.pth"
+    dino_model_name: str = "dinov2_vitg14"
 
     mask_segmentation: str = "fastsam"
     # global_method_name: Literal["SegLoc", "VLAD", "PCA"] = "SegLoc"

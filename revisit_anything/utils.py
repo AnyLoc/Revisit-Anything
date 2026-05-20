@@ -1,46 +1,26 @@
 # import func, func_sr
 import time
 import numpy as np
-import matplotlib.pyplot as plt
 import h5py
 from tqdm import tqdm
-from dataloaders.baidu_dataloader import Baidu_Dataset
-from dataloaders.aerial_dataloader import Aerial
-#from dataloaders.datasets_vg import map_builder
-#from dataloaders.datasets_vg import util
-#import utm
-from glob import glob
-from collections import defaultdict
-import os
-from os.path import join
 from natsort import natsorted
 import cv2
-from typing import Literal, List
 import torch
-from tkinter import *
-import matplotlib
-from utilities import VLAD
-from sklearn.decomposition import PCA
+# from tkinter import *
 import pickle
-import faiss
 import json
 from sklearn.neighbors import NearestNeighbors
 from sklearn.neighbors import KDTree
 from torchvision import transforms as tvf
 
-from sam.segment_anything import sam_model_registry, SamPredictor, SamAutomaticMaskGenerator
-from utilities import DinoV2ExtractFeatures
+from revisit_anything.misc import DinoV2ExtractFeatures
 from DINO.dino_wrapper import get_dino_pixel_wise_features_model, preprocess_frame
 from PIL import Image
-import importlib
-# vlad_buff = importlib.import_module("VLAD-BuFF")
-# from VLAD-BuFF.vpr_model import VPRModel
-# from SALAD.vpr_model import VPRModel as VPRModelSalad
 from fastsam import FastSAM, FastSAMPrompt
 import sys 
-sys.path.append('VLAD-BuFF')
-# import utils
-import vpr_model
+
+from revisit_anything.vlad_buff import vpr_model
+
 import torch.nn.functional as F
 from pathlib import Path
 from sklearn import config_context
@@ -510,6 +490,7 @@ def getAnyLocFt(img, extractor, device='cuda',upsample=True):
 
 
 def loadSAM(sam_checkpoint, cfg, device = 'cuda'):
+    from sam.segment_anything import sam_model_registry, SamAutomaticMaskGenerator
     model_type = "vit_h"
     sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
     sam.to(device=device)
@@ -518,10 +499,10 @@ def loadSAM(sam_checkpoint, cfg, device = 'cuda'):
     return mask_generator
 
 
-def loadDINO(cfg, dino_model, device="cuda"):
+def loadDINO(cfg, dino_model, checkpoint_path, device="cuda"):
     if cfg['dinov2']:
         # split checkpoint into name and parent path
-        dino = DinoV2ExtractFeatures(dino_model, 31, 'value', device=device, norm_descs=False)
+        dino = DinoV2ExtractFeatures(dino_model, 31, 'value', device=device, norm_descs=False, checkpoint_path=checkpoint_path)
     else:
         dino = get_dino_pixel_wise_features_model(cfg=cfg, device=device)
 

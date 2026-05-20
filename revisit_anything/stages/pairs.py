@@ -8,7 +8,7 @@ import faiss
 import numpy as np
 from loguru import logger
 
-import func_vpr
+import revisit_anything.utils as utils
 from revisit_anything.runtime import RuntimeCtx
 from revisit_anything.stages.vlad import AllVlads
 
@@ -39,17 +39,26 @@ class PairBuilder:
     def build(
         self,
         vlads: AllVlads,
+        past_vlads: AllVlads | None,
         images: list[Path],
         output_folder: Path,
         *,
         normalize: bool = True,
     ) -> tuple[Path, Path]:
+        # TODO how to search library
         feats_np = vlads.feats.cpu().numpy()
+        past_feats_np = past_vlads.feats.cpu().numpy() if past_vlads is not None else None
         if normalize:
-            feats_np = func_vpr.normalizeFeat(feats_np)
+            feats_np = utils.normalizeFeat(feats_np)
+            if past_feats_np is not None:
+                past_feats_np = utils.normalizeFeat(past_feats_np)
 
-        index = self._make_index(feats_np.shape[1])
+
+        # support traj_range
+        index = self._make_index(feats_np.shape[1] + (past_feats_np.shape[1] if past_feats_np is not None else 0))
         index.add(feats_np)
+        if past_feats_np is not None:
+            index.add(past_feats_np)
         sims, matches = index.search(feats_np, self.seg_topk)
         logger.info(f"faiss search: sims={sims.shape}, matches={matches.shape}")
 
@@ -60,7 +69,7 @@ class PairBuilder:
         matches_50 = matches[:, :50]
         seg_range = vlads.seg_range(len(images))
         dummy_gt = [[] for _ in range(len(images))]
-        preds = func_vpr.get_matches(
+        preds = utils.get_matches(
             matches_50, dummy_gt, sims_50, seg_range, vlads.im_inds,
             n=self.top_n + 1, method="max_seg_topk_wt_borda_Im",
         )
@@ -73,6 +82,7 @@ class PairBuilder:
         pair_map = {}
         pair_set = set()
         for i, img in enumerate(images):
+            # TODO filter by name
             nbrs = [int(j) for j in preds[i] if int(j) != i][: self.top_n]
             pair_map[img.name] = [images[j].name for j in nbrs]
             for j in nbrs:

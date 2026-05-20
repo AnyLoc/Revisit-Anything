@@ -3,9 +3,9 @@ import torch
 from torch.optim import lr_scheduler, optimizer
 import wandb
 from torch.utils.data import Subset
-import utils
-from models import helper
-from models.helper import L2Norm, Flatten
+from revisit_anything.vlad_buff import utils
+from revisit_anything.vlad_buff.models import helper
+from revisit_anything.vlad_buff.models.helper import L2Norm, Flatten
 from torchvision import transforms as T
 from torch import nn
 import torch

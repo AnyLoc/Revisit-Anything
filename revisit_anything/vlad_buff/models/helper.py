@@ -1,6 +1,6 @@
 import numpy as np
-from models import aggregators
-from models import backbones
+from revisit_anything.vlad_buff.models import aggregators
+from revisit_anything.vlad_buff.models import backbones
 from torchvision import transforms as T
 from torch import nn
 import torch

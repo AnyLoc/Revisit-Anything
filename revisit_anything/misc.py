@@ -220,9 +220,10 @@ class DinoV2ExtractFeatures:
     """
         Extract features from an intermediate layer in Dino-v2
     """
-    def __init__(self, dino_model: _DINO_V2_MODELS, layer: int, 
-                facet: _DINO_FACETS="token", use_cls=False, 
-                norm_descs=True, device: str = "cpu") -> None:
+    def __init__(self, dino_model: _DINO_V2_MODELS, layer: int,
+                facet: _DINO_FACETS="token", use_cls=False,
+                norm_descs=True, device: str = "cpu",
+                checkpoint_path: Union[str, None] = None) -> None:
         """
             Parameters:
             - dino_model:   The DINO-v2 model to use
@@ -234,11 +235,22 @@ class DinoV2ExtractFeatures:
                         Otherwise, only patch descriptors are used.
             - norm_descs:   If True, the descriptors are normalized
             - device:   PyTorch device to use
+            - checkpoint_path:  Path to a local state-dict checkpoint.
+                        When given, the model architecture is loaded
+                        from the hub without downloading pretrained
+                        weights, and weights are loaded from this file.
         """
         self.vit_type: str = dino_model
         self.device = torch.device(device)
-        self.dino_model: nn.Module = torch.hub.load(
-                'facebookresearch/dinov2', dino_model)
+        if checkpoint_path is not None:
+            self.dino_model: nn.Module = torch.hub.load(
+                    'facebookresearch/dinov2', dino_model,
+                    pretrained=False)
+            state_dict = torch.load(checkpoint_path, map_location="cpu")
+            self.dino_model.load_state_dict(state_dict)
+        else:
+            self.dino_model: nn.Module = torch.hub.load(
+                    'facebookresearch/dinov2', dino_model)
         self.dino_model = self.dino_model.eval().to(self.device)
         self.layer: int = layer
         self.facet = facet

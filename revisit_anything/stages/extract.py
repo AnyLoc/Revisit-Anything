@@ -6,7 +6,7 @@ from typing import Literal, Optional
 import torch
 from loguru import logger
 
-import func_vpr
+import revisit_anything.utils as func_vpr
 from revisit_anything.feature_store import FeatureStore
 from revisit_anything.runtime import RuntimeCtx
 from revisit_anything.timer import Timer
@@ -53,6 +53,7 @@ class FeatureExtractor:
         segmenter: Literal["sam", "fastsam"],
         desired_width: int,
         desired_height: int,
+        dino_checkpoint: Optional[str] = None,
         sam_checkpoint: Optional[str] = None,
         fastsam_checkpoint: Optional[str] = None,
         timer: Optional[Timer] = None,
@@ -67,6 +68,7 @@ class FeatureExtractor:
         self.ctx = ctx
         self.dino_model_name = dino_model
         self.segmenter = segmenter
+        self.dino_checkpoint = dino_checkpoint
         self.sam_checkpoint = sam_checkpoint
         self.fastsam_checkpoint = fastsam_checkpoint
         self.desired_width = desired_width
@@ -80,7 +82,7 @@ class FeatureExtractor:
     def _load_dino(self):
         if self._dino is None:
             self._dino = func_vpr.loadDINO(
-                self.legacy_cfg, self.dino_model_name, device=str(self.ctx.device)
+                self.legacy_cfg, self.dino_model_name, self.dino_checkpoint, device=str(self.ctx.device)
             )
         return self._dino
 
@@ -108,7 +110,7 @@ class FeatureExtractor:
         images: list[Path],
         output_folder: Path,
     ) -> FeatureStore:
-        feature_dir = output_folder / "image_feature_dicts"
+        feature_dir = output_folder# / "image_feature_dicts"
         feature_dir.mkdir(parents=True, exist_ok=True)
         dino_h5 = feature_dir / f"dino_{self.desired_width}.h5"
         masks_h5 = feature_dir / f"masks_{self.desired_width}.h5"
