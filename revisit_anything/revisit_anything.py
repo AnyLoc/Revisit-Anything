@@ -47,7 +47,7 @@ class RevisitAnything:
         self.mask_file = Path()
         self.timer = Timer(file_name=self._output_folder / "timing_info.json")
 
-    def __call__(self) -> AllVlads | None:
+    def __call__(self, query_images: list[Path]) -> AllVlads | None:
         if not self._workdir.exists():
             return None
 
@@ -108,15 +108,27 @@ class RevisitAnything:
 
                 # TODO support traj range and 過去データ
                 with self.timer.timeit_block("Computing VLADs for pair construction"):
-                    all_vlads = vlad_comp.compute_all(store, images, pca=pca_model)
+                    all_vlads = vlad_comp.compute_all(store, query_images, pca=pca_model)
         finally:
             extractor.close()
         return all_vlads
 
-def create_pairs(current_vlads: AllVlads, past_vlads: AllVlads | None, query_images: list[Path], output_folder: Path, runtime_cfg: RuntimeConfig, top_n: int, seg_topk: int) -> tuple[Path, Path]:
+def create_pairs(
+    current_vlads: AllVlads,
+    past_vlads: AllVlads | None,
+    query_images: list[Path],
+    output_folder: Path,
+    runtime_cfg: RuntimeConfig,
+    top_n: int,
+    seg_topk: int,
+    *,
+    current_prefix: str = "",
+    past_prefix: str = "",
+) -> tuple[Path, Path]:
     pair_builder = PairBuilder(runtime_cfg, top_n=top_n, seg_topk=seg_topk)
     json_path, txt_path = pair_builder.build(
         current_vlads, past_vlads, query_images, output_folder,
+        current_prefix=current_prefix, past_prefix=past_prefix,
     )
     return json_path, txt_path
 

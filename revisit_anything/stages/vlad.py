@@ -32,6 +32,7 @@ class ImageVlad:
 class AllVlads:
     feats: torch.Tensor         # [N_seg_total, dim] (post-PCA if pca was given)
     im_inds: np.ndarray         # [N_seg_total]
+    images: list[Path]          # length == N_images; same list passed to compute_all
 
     def seg_range(self, n_images: int) -> list[np.ndarray]:
         return [np.where(self.im_inds == i)[0] for i in range(n_images)]
@@ -129,7 +130,7 @@ class VladComputer:
             if im_inds_list
             else np.array([], dtype=int)
         )
-        return AllVlads(feats=feats, im_inds=im_inds)
+        return AllVlads(feats=feats, im_inds=im_inds, images=list(images))
 
 
 class VLAD:

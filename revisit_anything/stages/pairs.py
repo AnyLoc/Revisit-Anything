@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
 
 import faiss
 import numpy as np
@@ -40,12 +39,13 @@ class PairBuilder:
         self,
         vlads: AllVlads,
         past_vlads: AllVlads | None,
-        images: list[Path],
+        query_images: list[Path],
         output_folder: Path,
         *,
+        current_prefix: str = "",
+        past_prefix: str = "",
         normalize: bool = True,
     ) -> tuple[Path, Path]:
-        # TODO how to search library
         feats_np = vlads.feats.cpu().numpy()
         past_feats_np = past_vlads.feats.cpu().numpy() if past_vlads is not None else None
         if normalize:
@@ -53,13 +53,48 @@ class PairBuilder:
             if past_feats_np is not None:
                 past_feats_np = utils.normalizeFeat(past_feats_np)
 
+        if past_feats_np is not None:
+            assert feats_np.shape[1] == past_feats_np.shape[1], (
+                f"VLAD descriptor dim mismatch: current={feats_np.shape[1]} vs past={past_feats_np.shape[1]}"
+            )
 
-        # support traj_range
-        index = self._make_index(feats_np.shape[1] + (past_feats_np.shape[1] if past_feats_np is not None else 0))
+        index = self._make_index(feats_np.shape[1])
         index.add(feats_np)
         if past_feats_np is not None:
             index.add(past_feats_np)
-        sims, matches = index.search(feats_np, self.seg_topk)
+
+        n_cur = len(vlads.images)
+        if past_vlads is not None:
+            all_images = vlads.images + past_vlads.images
+            combined_im_inds = np.concatenate([
+                vlads.im_inds,
+                past_vlads.im_inds + n_cur,
+            ])
+        else:
+            all_images = vlads.images
+            combined_im_inds = vlads.im_inds
+
+        # Map each query image to its index in the full current image list so we
+        # can locate its segments in ``vlads.feats`` / ``vlads.im_inds``.
+        cur_index_by_name = {img.name: i for i, img in enumerate(vlads.images)}
+        query_idx_in_cur = [cur_index_by_name[q.name] for q in query_images]
+
+        seg_range_full = vlads.seg_range(n_cur)
+        seg_range_query = [seg_range_full[i] for i in query_idx_in_cur]
+        query_seg_idx = (
+            np.concatenate(seg_range_query) if seg_range_query else np.empty(0, dtype=int)
+        )
+
+        # ``get_matches`` indexes ``matches`` rows via segRangeQuery, so the
+        # ranges must be expressed in the local 0..M-1 layout of ``q_feats``.
+        seg_range_query_local: list[np.ndarray] = []
+        cursor = 0
+        for r in seg_range_query:
+            seg_range_query_local.append(np.arange(cursor, cursor + len(r)))
+            cursor += len(r)
+
+        q_feats = feats_np[query_seg_idx] if len(query_seg_idx) else feats_np[:0]
+        sims, matches = index.search(q_feats, self.seg_topk)
         logger.info(f"faiss search: sims={sims.shape}, matches={matches.shape}")
 
         # Same Borda aggregation as the original ``create_pairs``: take the
@@ -67,26 +102,40 @@ class PairBuilder:
         # vote at image level.
         sims_50 = 2 - sims[:, :50]
         matches_50 = matches[:, :50]
-        seg_range = vlads.seg_range(len(images))
-        dummy_gt = [[] for _ in range(len(images))]
+        dummy_gt = [[] for _ in range(len(query_images))]
         preds = utils.get_matches(
-            matches_50, dummy_gt, sims_50, seg_range, vlads.im_inds,
+            matches_50, dummy_gt, sims_50, seg_range_query_local, combined_im_inds,
             n=self.top_n + 1, method="max_seg_topk_wt_borda_Im",
         )
 
-        return self._write(preds, images, output_folder)
+        return self._write(
+            preds, query_idx_in_cur, all_images, n_cur,
+            current_prefix, past_prefix, output_folder,
+        )
 
     def _write(
-        self, preds, images: list[Path], output_folder: Path
+        self,
+        preds,
+        query_idx_in_cur: list[int],
+        all_images: list[Path],
+        n_cur: int,
+        current_prefix: str,
+        past_prefix: str,
+        output_folder: Path,
     ) -> tuple[Path, Path]:
-        pair_map = {}
-        pair_set = set()
-        for i, img in enumerate(images):
-            # TODO filter by name
-            nbrs = [int(j) for j in preds[i] if int(j) != i][: self.top_n]
-            pair_map[img.name] = [images[j].name for j in nbrs]
+        def _label(j: int) -> str:
+            img = all_images[j]
+            prefix = current_prefix if j < n_cur else past_prefix
+            return f"{prefix}{img.name}"
+
+        pair_map: dict[str, list[str]] = {}
+        pair_set: set[tuple[str, str]] = set()
+        for i, self_idx in enumerate(query_idx_in_cur):
+            nbrs = [int(j) for j in preds[i] if int(j) != self_idx][: self.top_n]
+            q_label = _label(self_idx)
+            pair_map[q_label] = [_label(j) for j in nbrs]
             for j in nbrs:
-                a, b = sorted([img.name, images[j].name])
+                a, b = sorted([q_label, _label(j)])
                 pair_set.add((a, b))
 
         json_path = output_folder / f"pairs_top{self.top_n}.json"
