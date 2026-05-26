@@ -14,11 +14,22 @@ class FeatureStore:
     Owns two ``h5py.File`` handles. Use as a context manager so they are
     closed at pipeline end. The raw ``.dino_h5`` handle is exposed because
     ``func_vpr.seg_vlad_gpu_single`` consumes the open H5 directly.
+
+    ``vlads_h5_path`` is optional and, when set, points to a pre-computed
+    per-image VLAD cache produced by :class:`FusedFeaturePcaStage`. We do
+    not open it here because :meth:`VladComputer._compute_all_from_cache`
+    opens it for the duration of its single pass.
     """
 
-    def __init__(self, dino_h5_path: Path, masks_h5_path: Path):
+    def __init__(
+        self,
+        dino_h5_path: Path,
+        masks_h5_path: Path,
+        vlads_h5_path: "Path | None" = None,
+    ):
         self.dino_h5_path = Path(dino_h5_path)
         self.masks_h5_path = Path(masks_h5_path)
+        self.vlads_h5_path = Path(vlads_h5_path) if vlads_h5_path is not None else None
         self.dino_h5 = h5py.File(str(self.dino_h5_path), "r")
         self.masks_h5 = h5py.File(str(self.masks_h5_path), "r")
 

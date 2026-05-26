@@ -4,8 +4,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator, Optional, TYPE_CHECKING, Union, List
 
+import h5py
 import numpy as np
 import torch
+from scipy.spatial import Delaunay
 from tqdm import tqdm
 
 import revisit_anything.utils as func_vpr
@@ -36,6 +38,113 @@ class AllVlads:
 
     def seg_range(self, n_images: int) -> list[np.ndarray]:
         return [np.where(self.im_inds == i)[0] for i in range(n_images)]
+
+
+def _build_adj_gpu(
+    seg_mask_gpu: torch.Tensor, order: Optional[int]
+) -> Optional[torch.Tensor]:
+    """GPU port of :func:`func_vpr.nbrMasksAGGFastSingle` (utils.py:1281).
+
+    Mask centroids are computed on GPU; the Delaunay triangulation itself
+    needs scipy (no GPU equivalent in our stack), so coordinates briefly
+    transit to CPU. The adjacency power is computed on GPU. Result is bool
+    on the same device as ``seg_mask_gpu``.
+    """
+    if order is None or order < 1:
+        return None
+
+    device = seg_mask_gpu.device
+    n = seg_mask_gpu.shape[0]
+
+    # Match legacy convention: np.nonzero(mask).mean(1)[::-1] → (mean_x, mean_y).
+    mask_f = seg_mask_gpu.float()
+    H = mask_f.shape[-2]
+    W = mask_f.shape[-1]
+    rows = torch.arange(H, device=device, dtype=torch.float32).view(1, H, 1)
+    cols = torch.arange(W, device=device, dtype=torch.float32).view(1, 1, W)
+    total = mask_f.sum(dim=(1, 2)).clamp_min(1.0)
+    mean_y = (mask_f * rows).sum(dim=(1, 2)) / total
+    mean_x = (mask_f * cols).sum(dim=(1, 2)) / total
+    mask_cords = torch.stack([mean_x, mean_y], dim=1).cpu().numpy()
+
+    adj_mat = torch.zeros((n, n), device=device, dtype=torch.float32)
+    if n > 3:
+        tri = Delaunay(mask_cords)
+        for v in range(n):
+            nbrs = func_vpr.getNbrsDelaunay(tri, v)
+            nbrs = np.unique([[v, v]] + nbrs)
+            adj_mat[v, torch.from_numpy(nbrs).to(device)] = 1.0
+        adj_power = adj_mat.clone()
+        for _ in range(order - 1):
+            adj_power = adj_power @ adj_mat
+        return adj_power.bool()
+
+    nbr_list = [0, 1] if n > 1 else [0]
+    for v in range(n):
+        for k in nbr_list:
+            adj_mat[v, k] = 1.0
+    return adj_mat.bool()
+
+
+def seg_vlad_gpu_from_tensors(
+    dino_feat_gpu: torch.Tensor,
+    seg_mask_gpu: torch.Tensor,
+    c_centers: torch.Tensor,
+    ind_matrix: torch.Tensor,
+    *,
+    desired_height: int,
+    desired_width: int,
+    desc_dim: int = 1536,
+    adj_mat: Optional[torch.Tensor] = None,
+    device: str = "cuda",
+) -> torch.Tensor:
+    """In-memory equivalent of :func:`func_vpr.seg_vlad_gpu_single`.
+
+    Accepts GPU-resident DINO features and segmentation masks directly so
+    the fused stage can skip the H5→CPU→GPU round-trip done by the legacy
+    path (``utils.py:1054``). Returns the per-segment VLAD on the requested
+    device (the legacy function returns ``.cpu()``; we keep it on GPU so
+    the caller can sample into a reservoir or apply PCA without another
+    transfer).
+
+    ``dino_feat_gpu`` accepts shapes ``[D, h_r, w_r]``, ``[1, D, h_r, w_r]``,
+    or ``[1, D, h_r*w_r]``. It is assumed to already be on the target device.
+    """
+    dh = desired_height // 14
+    dw = desired_width // 14
+
+    if dino_feat_gpu.dim() == 3 and dino_feat_gpu.shape[0] == desc_dim:
+        dino_desc = dino_feat_gpu.reshape(1, desc_dim, dh * dw)
+    elif dino_feat_gpu.dim() == 4:
+        dino_desc = dino_feat_gpu.reshape(1, desc_dim, dh * dw)
+    elif dino_feat_gpu.dim() == 3 and dino_feat_gpu.shape[1] == desc_dim:
+        dino_desc = dino_feat_gpu
+    else:
+        raise ValueError(
+            f"Unexpected dino_feat shape {tuple(dino_feat_gpu.shape)}"
+        )
+
+    dino_desc_norm = F.normalize(dino_desc, dim=1)
+
+    mask = seg_mask_gpu.float().unsqueeze(0)
+    mask = F.interpolate(
+        mask, [desired_height, desired_width], mode="nearest"
+    ).squeeze(0).bool().reshape(seg_mask_gpu.shape[0], -1)
+
+    n_seg = seg_mask_gpu.shape[0]
+    mask_idx = torch.zeros((n_seg, dh * dw), device=device, dtype=torch.bool)
+    mask_ind_flat = torch.argwhere(mask)
+    mask_idx[mask_ind_flat[:, 0], ind_matrix[mask_ind_flat[:, 1]]] = True
+
+    reg_feat_per = dino_desc_norm.permute(0, 2, 1).squeeze(0)
+    c_centers_d = c_centers.to(device)
+    if adj_mat is not None:
+        gd, _ = func_vpr.vlad_single(
+            reg_feat_per, c_centers_d, None, mask_idx, adj_mat.to(device)
+        )
+    else:
+        gd, _ = func_vpr.vlad_single(reg_feat_per, c_centers_d, None, mask_idx)
+    return gd
 
 
 class VladComputer:
@@ -103,12 +212,22 @@ class VladComputer:
         pca: Optional["PcaModel"] = None,
         batch_size: int = 100,
         desc: str = "SegVLAD",
+        vlads_cache_h5: Optional[Path] = None,
     ) -> AllVlads:
         """Compute all per-image VLADs in one streaming pass.
 
         If ``pca`` is given, PCA is applied per ``batch_size`` images so only
         the reduced-dimension result is accumulated.
+
+        If ``vlads_cache_h5`` points to a cache built by
+        :class:`FusedFeaturePcaStage`, the per-image VLAD is loaded directly
+        and we only apply PCA — DINO/FastSAM/SegVLAD recomputation is skipped.
         """
+        if vlads_cache_h5 is not None and Path(vlads_cache_h5).is_file():
+            return self._compute_all_from_cache(
+                vlads_cache_h5, images, pca, desc=desc
+            )
+
         feats_list: list[torch.Tensor] = []
         batch_buf: list[torch.Tensor] = []
         im_inds_list: list[np.ndarray] = []
@@ -123,6 +242,35 @@ class VladComputer:
                 batch = torch.cat(batch_buf, dim=0)
                 batch_buf = []
                 feats_list.append(pca.transform(batch))
+
+        feats = torch.cat(feats_list, dim=0) if feats_list else torch.empty(0)
+        im_inds = (
+            np.concatenate(im_inds_list)
+            if im_inds_list
+            else np.array([], dtype=int)
+        )
+        return AllVlads(feats=feats, im_inds=im_inds, images=list(images))
+
+    def _compute_all_from_cache(
+        self,
+        vlads_cache_h5: Path,
+        images: list[Path],
+        pca: Optional["PcaModel"],
+        desc: str = "SegVLAD (cached)",
+    ) -> AllVlads:
+        feats_list: list[torch.Tensor] = []
+        im_inds_list: list[np.ndarray] = []
+        with h5py.File(str(vlads_cache_h5), "r") as f:
+            for i, img in enumerate(tqdm(images, desc=desc)):
+                grp = f[img.name]
+                vlad_np = grp["vlad"][()]
+                vlad = torch.from_numpy(vlad_np).to(torch.float32)
+                if pca is not None:
+                    vlad = pca.transform(vlad.to(self.ctx.device))
+                feats_list.append(vlad.cpu())
+                im_inds_list.append(
+                    np.full(vlad_np.shape[0], i, dtype=np.int64)
+                )
 
         feats = torch.cat(feats_list, dim=0) if feats_list else torch.empty(0)
         im_inds = (

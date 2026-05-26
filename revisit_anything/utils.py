@@ -686,7 +686,7 @@ def process_SAM_to_h5_FastSAM(h5FullPath, cfg, ims: list[Path] | list[str],model
             grp.create_group("masks")
             for j, m in enumerate(masks):
                 for k in m.keys():
-                    grp["masks"].create_dataset(f"{j}/{k}", data=m[k])    
+                    grp["masks"].create_dataset(f"{j}/{k}", data=m[k], compression="lzf", chunks=True)
 
 def process_single_FastSAM(cfg,input_image,model, imname, device="cuda", imgsz=1024, iou=0.9, conf=0.4, retina=True):
     
@@ -726,6 +726,51 @@ def process_single_FastSAM(cfg,input_image,model, imname, device="cuda", imgsz=1
     # Create the list of dictionaries with segmentation masks
     masks = [{"segmentation": ann_numpy[i]} for i in range(ann_numpy.shape[0])]
     return masks  
+
+
+def process_batch_FastSAM(cfg, input_images, model, imnames, device="cuda",
+                          imgsz=1024, iou=0.9, conf=0.4, retina=True):
+    """Batched twin of :func:`process_single_FastSAM`.
+
+    Runs the FastSAM forward pass on a list of BGR numpy images in a single
+    ultralytics call; post-processing (FastSAMPrompt.everything_prompt) is
+    still per-image because FastSAMPrompt is stateful per source image.
+    Returns a list of per-image mask-dict lists matching
+    ``process_single_FastSAM`` so downstream consumers are unchanged.
+    """
+    pil_imgs = []
+    for img in input_images:
+        rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if cfg['resize']:
+            rgb = cv2.resize(rgb, (cfg['desired_width'], cfg['desired_height']))
+        pil_imgs.append(Image.fromarray(rgb))
+
+    everything_results = model(
+        pil_imgs,
+        device=device,
+        retina_masks=retina,
+        imgsz=imgsz,
+        conf=conf,
+        iou=iou,
+    )
+
+    out: list[list[dict]] = []
+    for i, name in enumerate(imnames):
+        prompt_process = FastSAMPrompt(pil_imgs[i], [everything_results[i]], device=device)
+        ann = prompt_process.everything_prompt()
+        if isinstance(ann, torch.Tensor):
+            ann_numpy = ann.cpu().numpy().astype(bool)
+        else:
+            print("Empty list - no masks found for image name : ", name)
+            print("printing ann for verification: ", ann)
+            ann_numpy = np.zeros((2, cfg['desired_height'], cfg['desired_width']), dtype=bool)
+            ann_numpy[0] = np.ones((cfg['desired_height'], cfg['desired_width']), dtype=bool)
+            random_row = np.random.randint(0, cfg['desired_height'])
+            random_col = np.random.randint(0, cfg['desired_width'])
+            ann_numpy[1, random_row, random_col] = True
+        masks = [{"segmentation": ann_numpy[j]} for j in range(ann_numpy.shape[0])]
+        out.append(masks)
+    return out
 
 
 def preload_masks(masks_in, image_key):

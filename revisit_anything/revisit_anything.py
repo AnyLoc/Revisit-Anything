@@ -13,6 +13,7 @@ from revisit_anything.runtime import resolve_runtime
 from revisit_anything.timer import Timer
 from revisit_anything.vlad_index import build_pixel_to_patch_index, load_cluster_centers
 from revisit_anything.stages.extract import FeatureExtractor
+from revisit_anything.stages.fused import FusedFeaturePcaStage
 from revisit_anything.stages.vlad import AllVlads, VladComputer, VLAD
 from revisit_anything.stages.pca import PcaFitter
 from revisit_anything.stages.pairs import PairBuilder
@@ -57,6 +58,82 @@ class RevisitAnything:
         images = _list_images(self._image_folder, self._cfg.top_n)
         ctx = resolve_runtime(self._cfg.runtime)
 
+        if self._cfg.global_method_name != "SegLoc":
+            raise NotImplementedError(
+                f"global_method_name={self._cfg.global_method_name!r}; only 'SegLoc' is supported"
+            )
+
+        c_centers, c_centers_file = load_cluster_centers(self._cfg.vlad_config, device=ctx.device)
+        idx_matrix, ind_matrix = build_pixel_to_patch_index(
+            self._cfg.desired_height, self._cfg.desired_width, device=ctx.device,
+        )
+        with self.timer.timeit_block("VLAD initialization"):
+            VLAD(self._cfg.vlad_config.number_clusters, desc_dim=None,
+                cache_dir=c_centers_file.parent).fit(None)
+
+        if self._cfg.fused_pipeline:
+            all_vlads = self._run_fused(
+                ctx, images, query_images, c_centers, ind_matrix, idx_matrix,
+            )
+        else:
+            all_vlads = self._run_legacy(
+                ctx, images, query_images, c_centers, ind_matrix, idx_matrix,
+            )
+        return all_vlads
+
+    def _run_fused(
+        self, ctx, images, query_images, c_centers, ind_matrix, idx_matrix,
+    ) -> AllVlads:
+        stage = FusedFeaturePcaStage(
+            ctx,
+            # dino_model=self._cfg.dino_model_name,
+            # dino_checkpoint=self._cfg.dino_checkpoint,
+            # fastsam_checkpoint=self._cfg.fastsam_checkpoint,
+            config=self._cfg,
+            c_centers=c_centers,
+            ind_matrix=ind_matrix,
+            # desired_width=self._cfg.desired_width,
+            # desired_height=self._cfg.desired_height,
+            # desc_dim=self._cfg.vlad_config.desc_dim,
+            # order=self._cfg.pca_config.order if self._cfg.pca_fit else 0,
+            # min_area=self._cfg.pca_config.min_area,
+            # pca_n_components=self._cfg.pca_config.lower_dim,
+            # pca_whiten=self._cfg.pca_config.whiten,
+            # pca_svd_solver=self._cfg.pca_config.svd_solver,
+            # pca_max_segments=self._cfg.pca_config.max_segments,
+            # fused_batch_size=self._cfg.runtime.fused_batch_size,
+            # h5_writer_queue=self._cfg.runtime.h5_writer_queue,
+            # dataloader_num_workers=self._cfg.runtime.dataloader_num_workers,
+            # cache_all_vlads=self._cfg.cache_all_vlads,
+            timer=self.timer,
+        )
+        try:
+            store, pca_model = stage.run(
+                self._image_folder, images, self._output_folder, self.pca_model_path,
+            )
+            with store:
+                self.feature_file = store.dino_h5_path
+                self.mask_file = store.masks_h5_path
+                vlad_comp = VladComputer(
+                    ctx, c_centers, ind_matrix, idx_matrix,
+                    desired_width=self._cfg.desired_width,
+                    desired_height=self._cfg.desired_height,
+                    desc_dim=self._cfg.vlad_config.desc_dim,
+                    order=self._cfg.pca_config.order if self._cfg.pca_fit else 0,
+                    min_area=self._cfg.pca_config.min_area,
+                )
+                with self.timer.timeit_block("Computing VLADs for pair construction"):
+                    all_vlads = vlad_comp.compute_all(
+                        store, query_images, pca=pca_model,
+                        vlads_cache_h5=store.vlads_h5_path,
+                    )
+        finally:
+            stage.close()
+        return all_vlads
+
+    def _run_legacy(
+        self, ctx, images, query_images, c_centers, ind_matrix, idx_matrix,
+    ) -> AllVlads:
         extractor = FeatureExtractor(
             ctx,
             dino_model=self._cfg.dino_model_name,
@@ -67,19 +144,12 @@ class RevisitAnything:
             desired_width=self._cfg.desired_width,
             desired_height=self._cfg.desired_height,
             timer=self.timer,
+            dino_batch_size=64,
         )
         try:
             with extractor.extract(self._image_folder, images, self._output_folder) as store:
-                c_centers, c_centers_file = load_cluster_centers(self._cfg.vlad_config, device=ctx.device)
                 self.feature_file = store.dino_h5_path
                 self.mask_file = store.masks_h5_path
-                idx_matrix, ind_matrix = build_pixel_to_patch_index(
-                    self._cfg.desired_height, self._cfg.desired_width, device=ctx.device,
-                )
-                with self.timer.timeit_block("VLAD initialization"):
-                    VLAD(self._cfg.vlad_config.number_clusters, desc_dim=None,
-                        cache_dir=c_centers_file.parent).fit(None)
-
                 vlad_comp = VladComputer(
                     ctx, c_centers, ind_matrix, idx_matrix,
                     desired_width=self._cfg.desired_width,
@@ -88,12 +158,6 @@ class RevisitAnything:
                     order=self._cfg.pca_config.order if self._cfg.pca_fit else 0,
                     min_area=self._cfg.pca_config.min_area,
                 )
-
-                if self._cfg.global_method_name != "SegLoc":
-                    raise NotImplementedError(
-                        f"global_method_name={self._cfg.global_method_name!r}; only 'SegLoc' is supported"
-                    )
-
                 pca_model = PcaFitter(
                     ctx,
                     n_components=self._cfg.pca_config.lower_dim,
@@ -105,8 +169,6 @@ class RevisitAnything:
                     cache_path=self.pca_model_path,
                     timer=self.timer,
                 )
-
-                # TODO support traj range and 過去データ
                 with self.timer.timeit_block("Computing VLADs for pair construction"):
                     all_vlads = vlad_comp.compute_all(store, query_images, pca=pca_model)
         finally:

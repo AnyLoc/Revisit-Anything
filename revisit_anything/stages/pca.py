@@ -79,6 +79,34 @@ class PcaFitter:
 
         raise NotImplementedError(f"pca_backend={self.ctx.pca_backend!r}")
 
+    def fit_from_buffer(self, buffer: torch.Tensor) -> PcaModel:
+        """Fit PCA from a pre-sampled tensor (e.g. a GPU reservoir).
+
+        Used by :class:`FusedFeaturePcaStage` where the per-image VLADs are
+        reservoir-sampled in-flight, avoiding the second pass that
+        :meth:`fit_streaming` does when consuming :class:`VladComputer.iter`.
+        ``buffer`` may be fp16 (typical for a GPU reservoir); we promote to
+        fp32 because :func:`torch.svd_lowrank` requires float.
+        """
+        if buffer.numel() == 0:
+            raise RuntimeError("Empty buffer for PCA fit")
+        logger.info(
+            f"PCA fit from buffer: {tuple(buffer.shape)} dtype={buffer.dtype}"
+        )
+        if self.ctx.pca_backend == "torch_svd":
+            return self._fit_torch_svd(buffer.float())
+        if self.ctx.pca_backend == "sklearn":
+            with config_context(array_api_dispatch=True):
+                pca = PCA(
+                    n_components=self.n_components,
+                    whiten=self.whiten,
+                    svd_solver=self.svd_solver,
+                )
+                pca.fit(buffer.float().cpu())
+            logger.info(f"Explained variance ratio: {pca.explained_variance_ratio_}")
+            return PcaModel(pca, device=self.ctx.device, backend="sklearn")
+        raise NotImplementedError(f"pca_backend={self.ctx.pca_backend!r}")
+
     def _fit_torch_svd(self, x: torch.Tensor) -> PcaModel:
         """GPU-resident PCA via low-rank SVD. Compatible interface with sklearn
         (mean centering + optional whitening), but components are computed
