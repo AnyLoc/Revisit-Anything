@@ -397,10 +397,7 @@ class FusedFeaturePcaStage:
                                 .cpu()
                                 .numpy()
                             )
-                            im_inds = np.full(
-                                vlad_cpu.shape[0], global_idx, dtype=np.int64
-                            )
-                            vlads_w.put((name, vlad_cpu, im_inds))
+                            vlads_w.put((name, vlad_cpu))
 
                         global_idx += 1
 

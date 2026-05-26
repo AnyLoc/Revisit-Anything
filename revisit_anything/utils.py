@@ -1096,7 +1096,7 @@ def seg_vlad_gpu_single(ind, idx, desc_path_in, img_key, segMask, c_centers, cfg
     dh = cfg['desired_height'] // 14
     dw = cfg['desired_width'] // 14
 
-    dino_desc = torch.from_numpy(desc_path_in[img_key]['ift_dino'][()])
+    dino_desc = torch.from_numpy(desc_path_in[img_key]['ift_dino'][()]).float()
     total_elements = dino_desc.shape[2] * dino_desc.shape[3]
     dino_desc = dino_desc.reshape(1, desc_dim, total_elements).to(device)
 

@@ -86,25 +86,9 @@ class RevisitAnything:
     ) -> AllVlads:
         stage = FusedFeaturePcaStage(
             ctx,
-            # dino_model=self._cfg.dino_model_name,
-            # dino_checkpoint=self._cfg.dino_checkpoint,
-            # fastsam_checkpoint=self._cfg.fastsam_checkpoint,
             config=self._cfg,
             c_centers=c_centers,
             ind_matrix=ind_matrix,
-            # desired_width=self._cfg.desired_width,
-            # desired_height=self._cfg.desired_height,
-            # desc_dim=self._cfg.vlad_config.desc_dim,
-            # order=self._cfg.pca_config.order if self._cfg.pca_fit else 0,
-            # min_area=self._cfg.pca_config.min_area,
-            # pca_n_components=self._cfg.pca_config.lower_dim,
-            # pca_whiten=self._cfg.pca_config.whiten,
-            # pca_svd_solver=self._cfg.pca_config.svd_solver,
-            # pca_max_segments=self._cfg.pca_config.max_segments,
-            # fused_batch_size=self._cfg.runtime.fused_batch_size,
-            # h5_writer_queue=self._cfg.runtime.h5_writer_queue,
-            # dataloader_num_workers=self._cfg.runtime.dataloader_num_workers,
-            # cache_all_vlads=self._cfg.cache_all_vlads,
             timer=self.timer,
         )
         try:

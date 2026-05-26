@@ -96,7 +96,10 @@ def dino_write_fn(f: h5py.File, item: tuple[str, np.ndarray]) -> None:
     """
     name, feat = item
     grp = f.create_group(name)
-    grp.create_dataset("ift_dino", data=feat, chunks=True, compression="gzip")
+    grp.create_dataset("ift_dino", 
+                       data=feat.astype(np.float16, copy=False),
+                       # data=feat,
+                       chunks=True, compression="gzip", compression_opts=9, shuffle=True)
 
 
 def masks_write_fn(f: h5py.File, item: tuple[str, list[np.ndarray]]) -> None:
@@ -111,12 +114,12 @@ def masks_write_fn(f: h5py.File, item: tuple[str, list[np.ndarray]]) -> None:
     masks_grp = grp.create_group("masks")
     for j, seg in enumerate(masks_seg):
         masks_grp.create_dataset(
-            f"{j}/segmentation", data=seg, compression="lzf", chunks=True
+            f"{j}/segmentation", data=seg, compression="gzip", chunks=True, compression_opts=9, shuffle=True
         )
 
 
 def vlads_write_fn(
-    f: h5py.File, item: tuple[str, np.ndarray, np.ndarray]
+    f: h5py.File, item: tuple[str, np.ndarray]
 ) -> None:
     """Writer for the optional ``vlads_{W}.h5`` cache.
 
@@ -124,7 +127,6 @@ def vlads_write_fn(
     pre-PCA VLAD vector with shape ``[n_seg, vlad_dim]`` (we store fp16 to
     keep disk footprint bounded; PCA fit will up-cast at read time).
     """
-    name, vlad, im_inds = item
+    name, vlad = item
     grp = f.create_group(name)
-    grp.create_dataset("vlad", data=vlad, chunks=True, compression="gzip")
-    grp.create_dataset("im_inds", data=im_inds, chunks=True, compression="gzip")
+    grp.create_dataset("vlad", data=vlad, chunks=True, compression="gzip", compression_opts=9, shuffle=True)
