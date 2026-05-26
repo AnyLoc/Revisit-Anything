@@ -96,7 +96,7 @@ def dino_write_fn(f: h5py.File, item: tuple[str, np.ndarray]) -> None:
     """
     name, feat = item
     grp = f.create_group(name)
-    grp.create_dataset("ift_dino", data=feat, chunks=True)
+    grp.create_dataset("ift_dino", data=feat, chunks=True, compression="gzip")
 
 
 def masks_write_fn(f: h5py.File, item: tuple[str, list[np.ndarray]]) -> None:
@@ -126,5 +126,5 @@ def vlads_write_fn(
     """
     name, vlad, im_inds = item
     grp = f.create_group(name)
-    grp.create_dataset("vlad", data=vlad, chunks=True)
-    grp.create_dataset("im_inds", data=im_inds, chunks=True)
+    grp.create_dataset("vlad", data=vlad, chunks=True, compression="gzip")
+    grp.create_dataset("im_inds", data=im_inds, chunks=True, compression="gzip")
