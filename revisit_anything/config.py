@@ -8,7 +8,10 @@ class RuntimeConfig:
     precision: str = "fp32"           # fp32 | fp16
     faiss_backend: str = "cpu"        # cpu | gpu
     pca_backend: str = "torch_svd"      # sklearn | torch_svd
-    fused_batch_size: int = 8
+    # 0 = auto-detect via revisit_anything.autobatch (profiles DINO+FastSAM
+    # peak memory and picks the largest B that fits free*fraction of GPU).
+    # Any positive integer is used as-is.
+    fused_batch_size: int = 0
     h5_writer_queue: int = 16
     dataloader_num_workers: int = 2
 

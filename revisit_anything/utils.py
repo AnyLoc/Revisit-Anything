@@ -738,15 +738,16 @@ def process_batch_FastSAM(cfg, input_images, model, imnames, device="cuda",
     Returns a list of per-image mask-dict lists matching
     ``process_single_FastSAM`` so downstream consumers are unchanged.
     """
-    pil_imgs = []
-    for img in input_images:
-        rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        if cfg['resize']:
-            rgb = cv2.resize(rgb, (cfg['desired_width'], cfg['desired_height']))
-        pil_imgs.append(Image.fromarray(rgb))
+    # pil_imgs = []
+    # for img in input_images:
+        # rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # if cfg['resize']:
+            # rgb = cv2.resize(rgb, (cfg['desired_width'], cfg['desired_height']))
+        # pil_imgs.append(Image.fromarray(rgb))
 
     everything_results = model(
-        pil_imgs,
+        # pil_imgs,
+        input_images,
         device=device,
         retina_masks=retina,
         imgsz=imgsz,
@@ -756,7 +757,8 @@ def process_batch_FastSAM(cfg, input_images, model, imnames, device="cuda",
 
     out: list[list[dict]] = []
     for i, name in enumerate(imnames):
-        prompt_process = FastSAMPrompt(pil_imgs[i], [everything_results[i]], device=device)
+        # prompt_process = FastSAMPrompt(pil_imgs[i], [everything_results[i]], device=device)
+        prompt_process = FastSAMPrompt(input_images[i], [everything_results[i]], device=device)
         ann = prompt_process.everything_prompt()
         if isinstance(ann, torch.Tensor):
             ann_numpy = ann.cpu().numpy().astype(bool)

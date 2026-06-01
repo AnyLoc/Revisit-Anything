@@ -269,15 +269,24 @@ class FusedFeaturePcaStage:
         # Any partial cache state means a previous run was interrupted; we
         # rebuild everything (h5py "w" mode truncates so we don't unlink
         # explicitly — keeps us out of the user's other files in this dir).
+        # from torch.profiler import profile, record_function, ProfilerActivity
+
+        # 1エポックや数バッチ分だけプロファイリングする
+        # with profile(
+            # activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+            # record_shapes=True,
+            # profile_memory=True, # メモリの推移も記録
+            # with_stack=True
+        # ) as prof:
         with self._timed("Fused extraction + PCA fit"):
             self._run_fused(
                 images, dino_h5, masks_h5, vlads_h5, pca_cache_path
             )
+        # prof.export_chrome_trace("run_script_output/trace.json")
 
         return FeatureStore(dino_h5, masks_h5, vlads_h5), PcaModel.load(
             pca_cache_path, self.ctx
         )
-
     def _run_fused(
         self,
         images: list[Path],
@@ -295,9 +304,19 @@ class FusedFeaturePcaStage:
             self.config.desired_height,
             self.legacy_cfg["rmin"],
         )
+
+        batch_size = self.config.runtime.fused_batch_size
+        if batch_size == 0:
+            from revisit_anything.autobatch import estimate_fused_batch_size
+
+            batch_size = estimate_fused_batch_size(
+                dino, fastsam, images, self.legacy_cfg, self.ctx,
+            )
+            logger.info(f"Using auto-detected fused_batch_size={batch_size}")
+
         loader = DataLoader(
             ds,
-            batch_size=self.config.runtime.fused_batch_size,
+            batch_size=batch_size,
             num_workers=self.config.runtime.dataloader_num_workers,
             shuffle=False,
             collate_fn=_collate,
