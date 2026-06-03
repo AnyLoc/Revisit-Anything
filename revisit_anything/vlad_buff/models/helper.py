@@ -1,7 +1,5 @@
-import numpy as np
 from revisit_anything.vlad_buff.models import aggregators
 from revisit_anything.vlad_buff.models import backbones
-from torchvision import transforms as T
 from torch import nn
 import torch
 import torch.nn.functional as F
@@ -90,6 +88,4 @@ def get_aggregator(agg_arch="ConvAP", agg_config={}):
         return aggregators.SALAD(**agg_config)
 
     elif "netvlad" in agg_arch.lower():
-        return aggregators.NetVLAD(
-            clusters_num=agg_config.clusters_num, dim=agg_config.dim, args=agg_config
-        )
+        return aggregators.NetVLAD(clusters_num=agg_config.clusters_num, dim=agg_config.dim, args=agg_config)

@@ -71,22 +71,18 @@ class GSVCitiesDataModule(pl.LightningDataModule):
         self.val_set_names = val_set_names
         self.save_hyperparameters()  # save hyperparameter with Pytorch Lightening
 
-        self.train_transform = T.Compose(
-            [
-                T.Resize(image_size, interpolation=T.InterpolationMode.BILINEAR),
-                T.RandAugment(num_ops=3, interpolation=T.InterpolationMode.BILINEAR),
-                T.ToTensor(),
-                T.Normalize(mean=self.mean_dataset, std=self.std_dataset),
-            ]
-        )
+        self.train_transform = T.Compose([
+            T.Resize(image_size, interpolation=T.InterpolationMode.BILINEAR),
+            T.RandAugment(num_ops=3, interpolation=T.InterpolationMode.BILINEAR),
+            T.ToTensor(),
+            T.Normalize(mean=self.mean_dataset, std=self.std_dataset),
+        ])
 
-        self.valid_transform = T.Compose(
-            [
-                T.Resize(image_size, interpolation=T.InterpolationMode.BILINEAR),
-                T.ToTensor(),
-                T.Normalize(mean=self.mean_dataset, std=self.std_dataset),
-            ]
-        )
+        self.valid_transform = T.Compose([
+            T.Resize(image_size, interpolation=T.InterpolationMode.BILINEAR),
+            T.ToTensor(),
+            T.Normalize(mean=self.mean_dataset, std=self.std_dataset),
+        ])
 
         self.train_loader_config = {
             "batch_size": self.batch_size,
@@ -113,25 +109,13 @@ class GSVCitiesDataModule(pl.LightningDataModule):
             self.val_datasets = []
             for valid_set_name in self.val_set_names:
                 if valid_set_name.lower() == "pitts30k_test":
-                    self.val_datasets.append(
-                        PittsburgDataset.get_whole_test_set(
-                            input_transform=self.valid_transform
-                        )
-                    )
+                    self.val_datasets.append(PittsburgDataset.get_whole_test_set(input_transform=self.valid_transform))
                 elif valid_set_name.lower() == "pitts30k_val":
-                    self.val_datasets.append(
-                        PittsburgDataset.get_whole_val_set(
-                            input_transform=self.valid_transform
-                        )
-                    )
+                    self.val_datasets.append(PittsburgDataset.get_whole_val_set(input_transform=self.valid_transform))
                 elif valid_set_name.lower() == "msls_val":
-                    self.val_datasets.append(
-                        MapillaryDataset.MSLS(input_transform=self.valid_transform)
-                    )
+                    self.val_datasets.append(MapillaryDataset.MSLS(input_transform=self.valid_transform))
                 else:
-                    print(
-                        f"Validation set {valid_set_name} does not exist or has not been implemented yet"
-                    )
+                    print(f"Validation set {valid_set_name} does not exist or has not been implemented yet")
                     raise NotImplementedError
             if self.show_data_stats:
                 self.print_stats()
@@ -152,9 +136,7 @@ class GSVCitiesDataModule(pl.LightningDataModule):
     def val_dataloader(self):
         val_dataloaders = []
         for val_dataset in self.val_datasets:
-            val_dataloaders.append(
-                DataLoader(dataset=val_dataset, **self.valid_loader_config)
-            )
+            val_dataloaders.append(DataLoader(dataset=val_dataset, **self.valid_loader_config))
         return val_dataloaders
 
     def print_stats(self):
@@ -176,7 +158,7 @@ class GSVCitiesDataModule(pl.LightningDataModule):
         table.align["Value"] = "l"
         table.header = False
         for i, val_set_name in enumerate(self.val_set_names):
-            table.add_row([f"Validation set {i+1}", f"{val_set_name}"])
+            table.add_row([f"Validation set {i + 1}", f"{val_set_name}"])
         # table.add_row(["# of places", f'{self.train_dataset.__len__()}'])
         print(table.get_string(title="Validation Datasets"))
         print()
@@ -187,8 +169,6 @@ class GSVCitiesDataModule(pl.LightningDataModule):
         table.align["Value"] = "l"
         table.header = False
         table.add_row(["Batch size (PxK)", f"{self.batch_size}x{self.img_per_place}"])
-        table.add_row(
-            ["# of iterations", f"{self.train_dataset.__len__()//self.batch_size}"]
-        )
+        table.add_row(["# of iterations", f"{self.train_dataset.__len__() // self.batch_size}"])
         table.add_row(["Image size", f"{self.image_size}"])
         print(table.get_string(title="Training config"))

@@ -12,19 +12,11 @@ def parse_args():
         description="Train VPR model",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
-        "--dataset_name", type=str, default="gsv_cities", help="Dataset"
-    )
-    parser.add_argument(
-        "--expName", default="0", help="Unique string for an experiment"
-    )
-    parser.add_argument(
-        "--batch_size", type=int, default=60, help="Batch size for the data module"
-    )
+    parser.add_argument("--dataset_name", type=str, default="gsv_cities", help="Dataset")
+    parser.add_argument("--expName", default="0", help="Unique string for an experiment")
+    parser.add_argument("--batch_size", type=int, default=60, help="Batch size for the data module")
     parser.add_argument("--img_per_place", type=int, default=4, help="Images per place")
-    parser.add_argument(
-        "--min_img_per_place", type=int, default=4, help="min_img_per_place"
-    )
+    parser.add_argument("--min_img_per_place", type=int, default=4, help="min_img_per_place")
     parser.add_argument(
         "--shuffle_all",
         type=bool,
@@ -45,9 +37,7 @@ def parse_args():
         help="Resizing shape for images (HxW).",
     )
     parser.add_argument("--num_workers", type=int, default=20, help="Number of workers")
-    parser.add_argument(
-        "--show_data_stats", type=bool, default=True, help="Show data statistics"
-    )
+    parser.add_argument("--show_data_stats", type=bool, default=True, help="Show data statistics")
 
     parser.add_argument(
         "--backbone",
@@ -56,9 +46,7 @@ def parse_args():
         choices=["dinov2_vitb14", "resnet"],
         help="Backbone architecture",
     )
-    parser.add_argument(
-        "--num_trainable_blocks", type=int, default=4, help="Trainable blocks"
-    )
+    parser.add_argument("--num_trainable_blocks", type=int, default=4, help="Trainable blocks")
     parser.add_argument("--norm_layer", type=bool, default=True, help="Use norm layer")
     parser.add_argument("--epochs", type=int, default=4, help="number of epochs")
 
@@ -75,13 +63,9 @@ def parse_args():
     # gem
     parser.add_argument("--p", type=int, default=3, help="power for gem")
     # convap
-    parser.add_argument(
-        "--in_channels", type=int, default=2048, help="in_channels for convap"
-    )
+    parser.add_argument("--in_channels", type=int, default=2048, help="in_channels for convap")
     # mixvpr
-    parser.add_argument(
-        "--out_channels", type=int, default=512, help="out_channels for mixvpr"
-    )
+    parser.add_argument("--out_channels", type=int, default=512, help="out_channels for mixvpr")
     parser.add_argument("--in_h", type=int, default=20, help="in_h for mixvpr")
     parser.add_argument("--in_w", type=int, default=20, help="in_w for mixvpr")
     parser.add_argument("--mix_depth", type=int, default=1, help="mix depth for mixvpr")
@@ -91,18 +75,10 @@ def parse_args():
         action="store_true",
         help="Store the soft_assign (optimal transport layer) and vlad",
     )
-    parser.add_argument(
-        "--num_channels", type=int, default=768, help="num channels for salad"
-    )
-    parser.add_argument(
-        "--num_clusters", type=int, default=64, help="num clusters for salad"
-    )
-    parser.add_argument(
-        "--cluster_dim", type=int, default=128, help="cluster_dim for salad"
-    )
-    parser.add_argument(
-        "--token_dim", type=int, default=256, help="token_dim for salad"
-    )
+    parser.add_argument("--num_channels", type=int, default=768, help="num channels for salad")
+    parser.add_argument("--num_clusters", type=int, default=64, help="num clusters for salad")
+    parser.add_argument("--cluster_dim", type=int, default=128, help="cluster_dim for salad")
+    parser.add_argument("--token_dim", type=int, default=256, help="token_dim for salad")
     parser.add_argument(
         "--reduce_feature_dims",
         type=bool,
@@ -136,9 +112,7 @@ def parse_args():
         help="Output dimension of final fully connected layer",
     )
     parser.add_argument("--dim", type=int, default=768, help="dim for netvlad")
-    parser.add_argument(
-        "--clusters_num", type=int, default=64, help="clusters_num for netvlad"
-    )
+    parser.add_argument("--clusters_num", type=int, default=64, help="clusters_num for netvlad")
     parser.add_argument(
         "--initialize_clusters",
         type=bool,
@@ -150,17 +124,13 @@ def parse_args():
         action="store_true",
         help="Add fully connected layer after VLAD layer",
     )
-    parser.add_argument(
-        "--nv_pca", type=int, help="Use PCA before clustering and nv aggregation."
-    )
+    parser.add_argument("--nv_pca", type=int, help="Use PCA before clustering and nv aggregation.")
     parser.add_argument(
         "--nv_pca_randinit",
         action="store_true",
         help="Initialize randomly instead of pca",
     )
-    parser.add_argument(
-        "--nv_pca_alt", action="store_true", help="use fc layer instead of pca"
-    )
+    parser.add_argument("--nv_pca_alt", action="store_true", help="use fc layer instead of pca")
     parser.add_argument(
         "--nv_pca_alt_mlp",
         action="store_true",
@@ -188,9 +158,7 @@ def parse_args():
     parser.add_argument("--ab_w", type=float, default=8.0, help="")
     parser.add_argument("--ab_b", type=float, default=7.0, help="")
     parser.add_argument("--ab_p", type=float, default=1.0, help="")
-    parser.add_argument(
-        "--ab_gen", type=int, help="generates thresholds from soft_assign"
-    )
+    parser.add_argument("--ab_gen", type=int, help="generates thresholds from soft_assign")
     parser.add_argument("--ab_relu", action="store_true", help="")
     parser.add_argument(
         "--ab_soft",
@@ -206,16 +174,10 @@ def parse_args():
         action="store_true",
         help="ab params are init but arent nn.Parameter",
     )
-    parser.add_argument(
-        "--ab_kp", type=int, help="num middle dim for fc-relu-fc weight per pixel"
-    )
-    parser.add_argument(
-        "--ab_wOnly", action="store_true", help="train w, freeze b and p as init"
-    )
+    parser.add_argument("--ab_kp", type=int, help="num middle dim for fc-relu-fc weight per pixel")
+    parser.add_argument("--ab_wOnly", action="store_true", help="train w, freeze b and p as init")
 
-    parser.add_argument(
-        "--device", type=str, default="cuda", choices=["cuda", "cpu"], help="_"
-    )
+    parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"], help="_")
     parser.add_argument(
         "--val_set_names",
         nargs="+",
@@ -308,9 +270,7 @@ if __name__ == "__main__":
         wandb.init(project="vlad_buff", config=args)
         # update runName
         runName = wandb.run.name
-        if (
-            args.expName != "" and runName is not None
-        ):  # runName is None when running wandb offline
+        if args.expName != "" and runName is not None:  # runName is None when running wandb offline
             wandb.run.name = args.expName + "-" + runName.split("-")[-1]
             wandb.run.save()
         else:
@@ -382,8 +342,7 @@ if __name__ == "__main__":
     # we save the best 3 models accoring to Recall@1 on pittsburg val
     checkpoint_cb = pl.callbacks.ModelCheckpoint(
         monitor="pitts30k_val/R1",
-        filename=f"{model.encoder_arch}"
-        + "_({epoch:02d})_R1[{pitts30k_val/R1:.4f}]_R5[{pitts30k_val/R5:.4f}]",
+        filename=f"{model.encoder_arch}" + "_({epoch:02d})_R1[{pitts30k_val/R1:.4f}]_R5[{pitts30k_val/R5:.4f}]",
         auto_insert_metric_name=False,
         save_weights_only=True,
         save_top_k=args.epochs,
@@ -402,9 +361,7 @@ if __name__ == "__main__":
         "precision": args.precision,  # we use half precision to reduce  memory usage
         "max_epochs": args.epochs,
         "check_val_every_n_epoch": 1,  # run validation every epoch
-        "callbacks": [
-            checkpoint_cb
-        ],  # we only run the checkpointing callback (you can add more)
+        "callbacks": [checkpoint_cb],  # we only run the checkpointing callback (you can add more)
         "reload_dataloaders_every_n_epochs": 1,  # we reload the dataset to shuffle the order
         "log_every_n_steps": 20,
     }

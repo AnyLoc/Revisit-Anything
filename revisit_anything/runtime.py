@@ -38,16 +38,11 @@ def resolve_runtime(cfg) -> RuntimeCtx:
         raw = "cuda" if torch.cuda.is_available() else "cpu"
     device = torch.device(raw)
     if device.type == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError(
-            f"runtime.device='{cfg.device}' requested but CUDA is unavailable"
-        )
+        raise RuntimeError(f"runtime.device='{cfg.device}' requested but CUDA is unavailable")
 
     precision = str(cfg.precision).lower()
     if precision not in _DTYPE_BY_PRECISION:
-        raise ValueError(
-            f"runtime.precision must be one of {list(_DTYPE_BY_PRECISION)}, "
-            f"got {cfg.precision!r}"
-        )
+        raise ValueError(f"runtime.precision must be one of {list(_DTYPE_BY_PRECISION)}, got {cfg.precision!r}")
 
     ctx = RuntimeCtx(
         device=device,
@@ -55,8 +50,5 @@ def resolve_runtime(cfg) -> RuntimeCtx:
         faiss_backend=str(cfg.faiss_backend).lower(),
         pca_backend=str(cfg.pca_backend).lower(),
     )
-    logger.info(
-        f"runtime: device={ctx.device} dtype={ctx.dtype} "
-        f"faiss={ctx.faiss_backend} pca={ctx.pca_backend}"
-    )
+    logger.info(f"runtime: device={ctx.device} dtype={ctx.dtype} faiss={ctx.faiss_backend} pca={ctx.pca_backend}")
     return ctx

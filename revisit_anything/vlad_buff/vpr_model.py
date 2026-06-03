@@ -1,14 +1,12 @@
 import pytorch_lightning as pl
 import torch
-from torch.optim import lr_scheduler, optimizer
+from torch.optim import lr_scheduler
 import wandb
-from torch.utils.data import Subset
 from revisit_anything.vlad_buff import utils
 from revisit_anything.vlad_buff.models import helper
 from revisit_anything.vlad_buff.models.helper import L2Norm, Flatten
 from torchvision import transforms as T
 from torch import nn
-import torch
 
 IMAGENET_MEAN_STD = {"mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}
 
@@ -74,9 +72,7 @@ class VPRModel(pl.LightningModule):
 
         self.loss_fn = utils.get_loss(loss_name)
         self.miner = utils.get_miner(miner_name, miner_margin)
-        self.batch_acc = (
-            []
-        )  # we will keep track of the % of trivial pairs/triplets at the loss level
+        self.batch_acc = []  # we will keep track of the % of trivial pairs/triplets at the loss level
 
         self.faiss_gpu = faiss_gpu
         self.args = args
@@ -92,6 +88,7 @@ class VPRModel(pl.LightningModule):
             # cluster using gsv single city
             if agg_config.initialize_clusters:
                 from dataloaders.GSVCitiesDataset import GSVCitiesDataset
+
                 # Instantiate GSVCitiesDataset with the desired city
                 selected_city = "London"  # Replace with the city you want
                 single_city_dataset = GSVCitiesDataset(
@@ -99,23 +96,19 @@ class VPRModel(pl.LightningModule):
                     img_per_place=1,  # Adjust as needed
                     min_img_per_place=1,  # Adjust as needed
                     random_sample_from_each_place=True,
-                    transform=T.Compose(
-                        [
-                            T.Resize(
-                                self.args.resize,
-                                interpolation=T.InterpolationMode.BILINEAR,
-                            ),
-                            T.ToTensor(),
-                            T.Normalize(
-                                mean=IMAGENET_MEAN_STD["mean"],
-                                std=IMAGENET_MEAN_STD["std"],
-                            ),  # Adjust mean and std if needed
-                        ]
-                    ),
+                    transform=T.Compose([
+                        T.Resize(
+                            self.args.resize,
+                            interpolation=T.InterpolationMode.BILINEAR,
+                        ),
+                        T.ToTensor(),
+                        T.Normalize(
+                            mean=IMAGENET_MEAN_STD["mean"],
+                            std=IMAGENET_MEAN_STD["std"],
+                        ),  # Adjust mean and std if needed
+                    ]),
                 )
-                self.aggLayer.initialize_netvlad_layer(
-                    agg_config, single_city_dataset, self.backbone
-                )
+                self.aggLayer.initialize_netvlad_layer(agg_config, single_city_dataset, self.backbone)
 
             if agg_config.l2 == "before_pool":
                 self.aggLayer = nn.Sequential(L2Norm(), self.aggLayer, Flatten())
@@ -124,9 +117,7 @@ class VPRModel(pl.LightningModule):
             elif agg_config.l2 == "onlyFlatten":
                 self.aggLayer = nn.Sequential(self.aggLayer, Flatten())
 
-            if (
-                agg_config.useFC
-            ):  # fc_dim used so have a NV agg layer in nn.Seq aggregation layer
+            if agg_config.useFC:  # fc_dim used so have a NV agg layer in nn.Seq aggregation layer
                 if agg_config.nv_pca is not None:
                     netvlad_output_dim = agg_config.nv_pca
 
@@ -194,17 +185,11 @@ class VPRModel(pl.LightningModule):
                 momentum=self.momentum,
             )
         elif self.optimizer.lower() == "adamw":
-            optimizer = torch.optim.AdamW(
-                self.parameters(), lr=self.lr, weight_decay=self.weight_decay
-            )
+            optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         elif self.optimizer.lower() == "adam":
-            optimizer = torch.optim.AdamW(
-                self.parameters(), lr=self.lr, weight_decay=self.weight_decay
-            )
+            optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         else:
-            raise ValueError(
-                f'Optimizer {self.optimizer} has not been added to "configure_optimizers()"'
-            )
+            raise ValueError(f'Optimizer {self.optimizer} has not been added to "configure_optimizers()"')
 
         if self.lr_sched.lower() == "multistep":
             scheduler = lr_scheduler.MultiStepLR(
@@ -213,9 +198,7 @@ class VPRModel(pl.LightningModule):
                 gamma=self.lr_sched_args["gamma"],
             )
         elif self.lr_sched.lower() == "cosine":
-            scheduler = lr_scheduler.CosineAnnealingLR(
-                optimizer, self.lr_sched_args["T_max"]
-            )
+            scheduler = lr_scheduler.CosineAnnealingLR(optimizer, self.lr_sched_args["T_max"])
         elif self.lr_sched.lower() == "linear":
             scheduler = lr_scheduler.LinearLR(
                 optimizer,
@@ -283,16 +266,12 @@ class VPRModel(pl.LightningModule):
         labels = labels.view(-1)
 
         # Feed forward the batch to the model
-        descriptors = self(
-            images
-        )  # Here we are calling the method forward that we defined above
+        descriptors = self(images)  # Here we are calling the method forward that we defined above
 
         if torch.isnan(descriptors).any():
             raise ValueError("NaNs in descriptors")
 
-        loss = self.loss_function(
-            descriptors, labels
-        )  # Call the loss_function we defined above
+        loss = self.loss_function(descriptors, labels)  # Call the loss_function we defined above
 
         self.log("loss", loss.item(), logger=True, prog_bar=True)
         if not self.args.no_wandb:
@@ -313,9 +292,7 @@ class VPRModel(pl.LightningModule):
 
     def on_validation_epoch_start(self):
         # reset the outputs list
-        self.val_outputs = [
-            [] for _ in range(len(self.trainer.datamodule.val_datasets))
-        ]
+        self.val_outputs = [[] for _ in range(len(self.trainer.datamodule.val_datasets))]
 
     def on_validation_epoch_end(self):
         """this return descriptors in their order
@@ -331,9 +308,7 @@ class VPRModel(pl.LightningModule):
         if len(dm.val_datasets) == 1:  # we need to put the outputs in a list
             val_step_outputs = [val_step_outputs]
 
-        for i, (val_set_name, val_dataset) in enumerate(
-            zip(dm.val_set_names, dm.val_datasets)
-        ):
+        for i, (val_set_name, val_dataset) in enumerate(zip(dm.val_set_names, dm.val_datasets)):
             feats = torch.concat(val_step_outputs[i], dim=0)
 
             if "pitts" in val_set_name:
@@ -346,7 +321,7 @@ class VPRModel(pl.LightningModule):
                 positives = val_dataset.pIdx
             else:
                 print(f"Please implement validation_epoch_end for {val_set_name}")
-                raise NotImplemented
+                raise NotImplementedError
 
             r_list = feats[:num_references]
             q_list = feats[num_references:]
@@ -365,9 +340,7 @@ class VPRModel(pl.LightningModule):
             self.log(f"{val_set_name}/R5", pitts_dict[5], prog_bar=False, logger=True)
             self.log(f"{val_set_name}/R10", pitts_dict[10], prog_bar=False, logger=True)
             if not self.args.no_wandb:
-                metrics = {
-                    f"{val_set_name}-val/Recall@{k}": v for k, v in pitts_dict.items()
-                }
+                metrics = {f"{val_set_name}-val/Recall@{k}": v for k, v in pitts_dict.items()}
                 wandb.log(metrics)
 
         print("\n\n")

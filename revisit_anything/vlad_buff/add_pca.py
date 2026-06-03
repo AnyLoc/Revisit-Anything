@@ -5,13 +5,11 @@ import numpy as np
 import torchvision.transforms as T
 from tqdm import tqdm
 import argparse
-from os.path import join, isfile
+from os.path import isfile
 from vpr_model import VPRModel
-from utils.validation import get_validation_recalls
 from scipy.sparse.linalg import eigs
 import torch.nn as nn
 import time
-from sklearn.decomposition import PCA
 import torch.nn.functional as F
 
 # Dataloader
@@ -74,11 +72,7 @@ def pca(x: np.ndarray, num_pcs=None, subtract_mean=True):
     if num_pcs is None:
         num_pcs = n_dims
 
-    print(
-        "PCA for {} points of dimension {} to PCA dimension {}".format(
-            n_points, n_dims, num_pcs
-        )
-    )
+    print("PCA for {} points of dimension {} to PCA dimension {}".format(n_points, n_dims, num_pcs))
 
     if subtract_mean:
         # Subtract mean
@@ -127,19 +121,11 @@ def parse_args():
         description="Eval VPR model",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
-        "--dataset_name", type=str, default="gsv_cities", help="Dataset"
-    )
-    parser.add_argument(
-        "--expName", default="0", help="Unique string for an experiment"
-    )
-    parser.add_argument(
-        "--batch_size", type=int, default=250, help="Batch size for the data module"
-    )
+    parser.add_argument("--dataset_name", type=str, default="gsv_cities", help="Dataset")
+    parser.add_argument("--expName", default="0", help="Unique string for an experiment")
+    parser.add_argument("--batch_size", type=int, default=250, help="Batch size for the data module")
     parser.add_argument("--img_per_place", type=int, default=1, help="Images per place")
-    parser.add_argument(
-        "--min_img_per_place", type=int, default=1, help="min_img_per_place"
-    )
+    parser.add_argument("--min_img_per_place", type=int, default=1, help="min_img_per_place")
     parser.add_argument(
         "--shuffle_all",
         type=bool,
@@ -162,9 +148,7 @@ def parse_args():
     )
 
     parser.add_argument("--num_workers", type=int, default=20, help="Number of workers")
-    parser.add_argument(
-        "--show_data_stats", type=bool, default=True, help="Show data statistics"
-    )
+    parser.add_argument("--show_data_stats", type=bool, default=True, help="Show data statistics")
 
     parser.add_argument(
         "--backbone",
@@ -173,9 +157,7 @@ def parse_args():
         choices=["dinov2_vitb14", "resnet"],
         help="Backbone architecture",
     )
-    parser.add_argument(
-        "--num_trainable_blocks", type=int, default=4, help="Trainable blocks"
-    )
+    parser.add_argument("--num_trainable_blocks", type=int, default=4, help="Trainable blocks")
     parser.add_argument("--norm_layer", type=bool, default=True, help="Use norm layer")
     parser.add_argument(
         "--aggregation",
@@ -189,13 +171,9 @@ def parse_args():
     # gem
     parser.add_argument("--p", type=int, default=3, help="power for gem")
     # convap
-    parser.add_argument(
-        "--in_channels", type=int, default=2048, help="in_channels for convap"
-    )
+    parser.add_argument("--in_channels", type=int, default=2048, help="in_channels for convap")
     # mixvpr
-    parser.add_argument(
-        "--out_channels", type=int, default=512, help="out_channels for mixvpr"
-    )
+    parser.add_argument("--out_channels", type=int, default=512, help="out_channels for mixvpr")
     parser.add_argument("--in_h", type=int, default=20, help="in_h for mixvpr")
     parser.add_argument("--in_w", type=int, default=20, help="in_w for mixvpr")
     parser.add_argument("--mix_depth", type=int, default=1, help="mix depth for mixvpr")
@@ -205,18 +183,10 @@ def parse_args():
         action="store_true",
         help="Store the soft_assign (optimal transport layer) and vlad",
     )
-    parser.add_argument(
-        "--num_channels", type=int, default=768, help="num channels for salad"
-    )
-    parser.add_argument(
-        "--num_clusters", type=int, default=64, help="num clusters for salad"
-    )
-    parser.add_argument(
-        "--cluster_dim", type=int, default=128, help="cluster_dim for salad"
-    )
-    parser.add_argument(
-        "--token_dim", type=int, default=256, help="token_dim for salad"
-    )
+    parser.add_argument("--num_channels", type=int, default=768, help="num channels for salad")
+    parser.add_argument("--num_clusters", type=int, default=64, help="num clusters for salad")
+    parser.add_argument("--cluster_dim", type=int, default=128, help="cluster_dim for salad")
+    parser.add_argument("--token_dim", type=int, default=256, help="token_dim for salad")
     parser.add_argument(
         "--reduce_feature_dims",
         type=bool,
@@ -251,9 +221,7 @@ def parse_args():
         help="Output dimension of final fully connected layer",
     )
     parser.add_argument("--dim", type=int, default=768, help="dim for netvlad")
-    parser.add_argument(
-        "--clusters_num", type=int, default=64, help="clusters_num for netvlad"
-    )
+    parser.add_argument("--clusters_num", type=int, default=64, help="clusters_num for netvlad")
     parser.add_argument(
         "--initialize_clusters",
         type=bool,
@@ -265,9 +233,7 @@ def parse_args():
         action="store_true",
         help="Add fully connected layer after VLAD layer",
     )
-    parser.add_argument(
-        "--nv_pca", type=int, help="Use PCA before clustering and nv aggregation."
-    )
+    parser.add_argument("--nv_pca", type=int, help="Use PCA before clustering and nv aggregation.")
     parser.add_argument(
         "--wpca",
         action="store_true",
@@ -285,9 +251,7 @@ def parse_args():
         action="store_true",
         help="Initialize randomly instead of pca",
     )
-    parser.add_argument(
-        "--nv_pca_alt", action="store_true", help="use fc layer instead of pca"
-    )
+    parser.add_argument("--nv_pca_alt", action="store_true", help="use fc layer instead of pca")
     parser.add_argument(
         "--nv_pca_alt_mlp",
         action="store_true",
@@ -314,9 +278,7 @@ def parse_args():
     parser.add_argument("--ab_w", type=float, default=8.0, help="")
     parser.add_argument("--ab_b", type=float, default=7.0, help="")
     parser.add_argument("--ab_p", type=float, default=1.0, help="")
-    parser.add_argument(
-        "--ab_gen", type=int, help="generates thresholds from soft_assign"
-    )
+    parser.add_argument("--ab_gen", type=int, help="generates thresholds from soft_assign")
     parser.add_argument("--ab_relu", action="store_true", help="")
     parser.add_argument(
         "--ab_soft",
@@ -332,16 +294,10 @@ def parse_args():
         action="store_true",
         help="ab params are init but arent nn.Parameter",
     )
-    parser.add_argument(
-        "--ab_kp", type=int, help="num middle dim for fc-relu-fc weight per pixel"
-    )
-    parser.add_argument(
-        "--ab_wOnly", action="store_true", help="train w, freeze b and p as init"
-    )
+    parser.add_argument("--ab_kp", type=int, help="num middle dim for fc-relu-fc weight per pixel")
+    parser.add_argument("--ab_wOnly", action="store_true", help="train w, freeze b and p as init")
 
-    parser.add_argument(
-        "--device", type=str, default="cuda", choices=["cuda", "cpu"], help="_"
-    )
+    parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"], help="_")
     #    parser.add_argument("--ckpt_path", type=str, required=True, default=None, help="Path to the checkpoint")
     parser.add_argument(
         "--resume_train",
@@ -350,9 +306,7 @@ def parse_args():
         default=None,
         help="path to checkpoint to resume, e.g. logs/.../last_checkpoint.pth",
     )
-    parser.add_argument(
-        "--ckpt_state_dict", action="store_true", help="Use checkpoint state dictionary"
-    )
+    parser.add_argument("--ckpt_state_dict", action="store_true", help="Use checkpoint state dictionary")
 
     parser.add_argument(
         "--pl_seed",
@@ -432,13 +386,9 @@ if __name__ == "__main__":
     if args.resume_train:  # must resume for PCA
         if isfile(args.resume_train):
             print("=> loading checkpoint '{}'".format(args.resume_train))
-            checkpoint = torch.load(
-                args.resume_train, map_location=lambda storage, loc: storage
-            )
+            checkpoint = torch.load(args.resume_train, map_location=lambda storage, loc: storage)
             if "netvlad" in args.aggregation.lower():
-                assert args.clusters_num == int(
-                    checkpoint["state_dict"]["aggregator.centroids"].shape[0]
-                )
+                assert args.clusters_num == int(checkpoint["state_dict"]["aggregator.centroids"].shape[0])
 
             if args.ckpt_state_dict:
                 model.load_state_dict(checkpoint["state_dict"])
@@ -451,9 +401,7 @@ if __name__ == "__main__":
                 )
             )
         else:
-            raise FileNotFoundError(
-                "=> no checkpoint found at '{}'".format(args.resume_train)
-            )
+            raise FileNotFoundError("=> no checkpoint found at '{}'".format(args.resume_train))
     else:
         raise ValueError("Need an existing checkpoint in order to run PCA")
 
@@ -468,14 +416,12 @@ if __name__ == "__main__":
     elif "salad" in args.aggregation.lower():
         pool_size = args.num_clusters * args.cluster_dim + args.token_dim
 
-    train_transform = T.Compose(
-        [
-            T.Resize(args.resize, interpolation=T.InterpolationMode.BILINEAR),
-            T.RandAugment(num_ops=3, interpolation=T.InterpolationMode.BILINEAR),
-            T.ToTensor(),
-            T.Normalize(mean=IMAGENET_MEAN_STD["mean"], std=IMAGENET_MEAN_STD["std"]),
-        ]
-    )
+    train_transform = T.Compose([
+        T.Resize(args.resize, interpolation=T.InterpolationMode.BILINEAR),
+        T.RandAugment(num_ops=3, interpolation=T.InterpolationMode.BILINEAR),
+        T.ToTensor(),
+        T.Normalize(mean=IMAGENET_MEAN_STD["mean"], std=IMAGENET_MEAN_STD["std"]),
+    ])
 
     train_dataset = GSVCitiesDataset(
         cities=args.cities,
@@ -495,9 +441,7 @@ if __name__ == "__main__":
     if nFeatures > num_pca_train_images:
         nFeatures = num_pca_train_images
 
-    sampler = SubsetRandomSampler(
-        np.random.choice(num_pca_train_images, nFeatures, replace=False)
-    )
+    sampler = SubsetRandomSampler(np.random.choice(num_pca_train_images, nFeatures, replace=False))
 
     train_loader_config = {
         "batch_size": args.batch_size,
@@ -522,9 +466,7 @@ if __name__ == "__main__":
             # In GSVCities, we return a place, which is a Tesor of K images (K=self.img_per_place)
             # this will return a Tensor of shape [K, channels, height, width]. This needs to be taken into account
             # in the Dataloader (which will yield batches of shape [BS, K, channels, height, width])
-            input_data = input_data.view(
-                -1, *input_data.shape[2:]
-            )  # Reshape input [BS*K, channels, height, width]
+            input_data = input_data.view(-1, *input_data.shape[2:])  # Reshape input [BS*K, channels, height, width]
             input_data = input_data.to(args.device)
             image_encoding = model.backbone(input_data)
             if args.useFC:
@@ -564,28 +506,20 @@ if __name__ == "__main__":
         current_lams = lams[:num_pc]
 
         # Perform the whitening manually
-        current_u_whitened = np.matmul(
-            current_u, np.diag(1.0 / np.sqrt(current_lams + 1e-9))
-        )
+        current_u_whitened = np.matmul(current_u, np.diag(1.0 / np.sqrt(current_lams + 1e-9)))
 
         # Compute the bias term (mean adjustment for whitening)
         utmu = np.matmul(current_u_whitened.T, mu)
 
         # Create the Conv2D layer with the PCA components as weights
         pca_conv = nn.Conv2d(pool_size, num_pc, kernel_size=(1, 1), stride=1, padding=0)
-        pca_conv.weight = nn.Parameter(
-            torch.from_numpy(
-                np.expand_dims(np.expand_dims(current_u_whitened.T, -1), -1)
-            )
-        )
+        pca_conv.weight = nn.Parameter(torch.from_numpy(np.expand_dims(np.expand_dims(current_u_whitened.T, -1), -1)))
         pca_conv.bias = nn.Parameter(torch.from_numpy(-utmu))
         end_time = time.time()
         print(f"{num_pc} PCA computation took {end_time - start_time:.2f} seconds.")
 
         # Add the PCA layer to the model
-        model.add_module(
-            f"WPCA_{num_pc}", nn.Sequential(*[pca_conv, Flatten(), L2Norm(dim=-1)])
-        )
+        model.add_module(f"WPCA_{num_pc}", nn.Sequential(*[pca_conv, Flatten(), L2Norm(dim=-1)]))
 
         # Save the model with the new PCA layer
         torch.save({"num_pcs": num_pc, "state_dict": model.state_dict()}, save_path)

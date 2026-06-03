@@ -27,25 +27,17 @@ def parse_args(antiburst=False, nv_pca=None, wpca=False, num_pcs=8192):
         description="Eval VPR model",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
-        "--dataset_name", type=str, default="gsv_cities", help="Dataset"
-    )
+    parser.add_argument("--dataset_name", type=str, default="gsv_cities", help="Dataset")
     parser.add_argument(
         "--save_dir",
         type=str,
         default="./logs/lightning_logs/",
         help="name of directory on which to save the logs, under logs/save_dir",
     )
-    parser.add_argument(
-        "--expName", default="0", help="Unique string for an experiment"
-    )
-    parser.add_argument(
-        "--batch_size", type=int, default=200, help="Batch size for the data module"
-    )
+    parser.add_argument("--expName", default="0", help="Unique string for an experiment")
+    parser.add_argument("--batch_size", type=int, default=200, help="Batch size for the data module")
     parser.add_argument("--img_per_place", type=int, default=4, help="Images per place")
-    parser.add_argument(
-        "--min_img_per_place", type=int, default=4, help="min_img_per_place"
-    )
+    parser.add_argument("--min_img_per_place", type=int, default=4, help="min_img_per_place")
     parser.add_argument(
         "--shuffle_all",
         type=bool,
@@ -67,9 +59,7 @@ def parse_args(antiburst=False, nv_pca=None, wpca=False, num_pcs=8192):
     )
 
     parser.add_argument("--num_workers", type=int, default=20, help="Number of workers")
-    parser.add_argument(
-        "--show_data_stats", type=bool, default=True, help="Show data statistics"
-    )
+    parser.add_argument("--show_data_stats", type=bool, default=True, help="Show data statistics")
 
     parser.add_argument(
         "--backbone",
@@ -78,9 +68,7 @@ def parse_args(antiburst=False, nv_pca=None, wpca=False, num_pcs=8192):
         choices=["dinov2_vitb14", "resnet"],
         help="Backbone architecture",
     )
-    parser.add_argument(
-        "--num_trainable_blocks", type=int, default=4, help="Trainable blocks"
-    )
+    parser.add_argument("--num_trainable_blocks", type=int, default=4, help="Trainable blocks")
     parser.add_argument("--norm_layer", type=bool, default=True, help="Use norm layer")
 
     # Arguments for helper.py (aggregation configuration)
@@ -96,13 +84,9 @@ def parse_args(antiburst=False, nv_pca=None, wpca=False, num_pcs=8192):
     # gem
     parser.add_argument("--p", type=int, default=3, help="power for gem")
     # convap
-    parser.add_argument(
-        "--in_channels", type=int, default=2048, help="in_channels for convap"
-    )
+    parser.add_argument("--in_channels", type=int, default=2048, help="in_channels for convap")
     # mixvpr
-    parser.add_argument(
-        "--out_channels", type=int, default=512, help="out_channels for mixvpr"
-    )
+    parser.add_argument("--out_channels", type=int, default=512, help="out_channels for mixvpr")
     parser.add_argument("--in_h", type=int, default=20, help="in_h for mixvpr")
     parser.add_argument("--in_w", type=int, default=20, help="in_w for mixvpr")
     parser.add_argument("--mix_depth", type=int, default=1, help="mix depth for mixvpr")
@@ -112,18 +96,10 @@ def parse_args(antiburst=False, nv_pca=None, wpca=False, num_pcs=8192):
         action="store_true",
         help="Store the soft_assign (optimal transport layer) and vlad",
     )
-    parser.add_argument(
-        "--num_channels", type=int, default=768, help="num channels for salad"
-    )
-    parser.add_argument(
-        "--num_clusters", type=int, default=64, help="num clusters for salad"
-    )
-    parser.add_argument(
-        "--cluster_dim", type=int, default=128, help="cluster_dim for salad"
-    )
-    parser.add_argument(
-        "--token_dim", type=int, default=256, help="token_dim for salad"
-    )
+    parser.add_argument("--num_channels", type=int, default=768, help="num channels for salad")
+    parser.add_argument("--num_clusters", type=int, default=64, help="num clusters for salad")
+    parser.add_argument("--cluster_dim", type=int, default=128, help="cluster_dim for salad")
+    parser.add_argument("--token_dim", type=int, default=256, help="token_dim for salad")
     parser.add_argument(
         "--reduce_feature_dims",
         type=bool,
@@ -158,9 +134,7 @@ def parse_args(antiburst=False, nv_pca=None, wpca=False, num_pcs=8192):
         help="Output dimension of final fully connected layer",
     )
     parser.add_argument("--dim", type=int, default=768, help="dim for netvlad")
-    parser.add_argument(
-        "--clusters_num", type=int, default=64, help="clusters_num for netvlad"
-    )
+    parser.add_argument("--clusters_num", type=int, default=64, help="clusters_num for netvlad")
     parser.add_argument(
         "--initialize_clusters",
         type=bool,
@@ -183,9 +157,7 @@ def parse_args(antiburst=False, nv_pca=None, wpca=False, num_pcs=8192):
         action="store_true",
         help="Initialize randomly instead of pca",
     )
-    parser.add_argument(
-        "--nv_pca_alt", action="store_true", help="use fc layer instead of pca"
-    )
+    parser.add_argument("--nv_pca_alt", action="store_true", help="use fc layer instead of pca")
     parser.add_argument(
         "--nv_pca_alt_mlp",
         action="store_true",
@@ -213,9 +185,7 @@ def parse_args(antiburst=False, nv_pca=None, wpca=False, num_pcs=8192):
     parser.add_argument("--ab_w", type=float, default=8.0, help="")
     parser.add_argument("--ab_b", type=float, default=7.0, help="")
     parser.add_argument("--ab_p", type=float, default=1.0, help="")
-    parser.add_argument(
-        "--ab_gen", type=int, help="generates thresholds from soft_assign"
-    )
+    parser.add_argument("--ab_gen", type=int, help="generates thresholds from soft_assign")
     parser.add_argument("--ab_relu", action="store_true", help="")
     parser.add_argument(
         "--ab_soft",
@@ -231,16 +201,10 @@ def parse_args(antiburst=False, nv_pca=None, wpca=False, num_pcs=8192):
         action="store_true",
         help="ab params are init but arent nn.Parameter",
     )
-    parser.add_argument(
-        "--ab_kp", type=int, help="num middle dim for fc-relu-fc weight per pixel"
-    )
-    parser.add_argument(
-        "--ab_wOnly", action="store_true", help="train w, freeze b and p as init"
-    )
+    parser.add_argument("--ab_kp", type=int, help="num middle dim for fc-relu-fc weight per pixel")
+    parser.add_argument("--ab_wOnly", action="store_true", help="train w, freeze b and p as init")
 
-    parser.add_argument(
-        "--device", type=str, default="cuda", choices=["cuda", "cpu"], help="_"
-    )
+    parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu"], help="_")
     parser.add_argument(
         "--resume_train",
         type=str,
@@ -275,18 +239,14 @@ def parse_args(antiburst=False, nv_pca=None, wpca=False, num_pcs=8192):
     )
     parser.add_argument("--seed", type=int, default=1)
 
-    parser.add_argument(
-        "--num_pcs", type=int, default=num_pcs, help="Use post pool PCA."
-    )
+    parser.add_argument("--num_pcs", type=int, default=num_pcs, help="Use post pool PCA.")
     parser.add_argument(
         "--no_wandb",
         type=bool,
         default=True,
         help="Dont use wandb",
     )
-    parser.add_argument(
-        "--store_eval_output", action="store_true", help="store eval output"
-    )
+    parser.add_argument("--store_eval_output", action="store_true", help="store eval output")
 
     args = parser.parse_args()
 
@@ -311,9 +271,7 @@ def replace_key(k, num):
     return k
 
 
-def vlad_buff(
-    pretrained=True, antiburst=True, nv_pca=None, wpca=True, num_pcs=8192
-) -> torch.nn.Module:
+def vlad_buff(pretrained=True, antiburst=True, nv_pca=None, wpca=True, num_pcs=8192) -> torch.nn.Module:
     """Return a VLAD-BuFF model.
     Args:
         pretrained (bool): Whether to load pretrained weights.
@@ -332,12 +290,12 @@ def vlad_buff(
 
     agg_args = args
 
-    assert (
-        args.backbone in DINOV2_ARCHS.keys()
-    ), f"Parameter `backbone` is set to {args.backbone} but it must be one of {list(DINOV2_ARCHS.keys())}"
-    assert (
-        not pretrained or args.backbone == "dinov2_vitb14"
-    ), f"Parameter `pretrained` can only be set to True if backbone is 'dinov2_vitb14', but it is set to {args.backbone}"
+    assert args.backbone in DINOV2_ARCHS.keys(), (
+        f"Parameter `backbone` is set to {args.backbone} but it must be one of {list(DINOV2_ARCHS.keys())}"
+    )
+    assert not pretrained or args.backbone == "dinov2_vitb14", (
+        f"Parameter `pretrained` can only be set to True if backbone is 'dinov2_vitb14', but it is set to {args.backbone}"
+    )
 
     backbone_config = {
         "num_trainable_blocks": args.num_trainable_blocks,
@@ -364,14 +322,12 @@ def vlad_buff(
             f"https://github.com/ahmedest61/VLAD-BuFF/releases/download/v1.0.0/dnv2_NV_{args.nv_pca}PCA_AB_wpca{args.num_pcs}_last.ckpt"
         )
 
-    checkpoint["state_dict"] = OrderedDict(
-        {replace_key(k, args.num_pcs): v for k, v in checkpoint["state_dict"].items()}
-    )
+    checkpoint["state_dict"] = OrderedDict({
+        replace_key(k, args.num_pcs): v for k, v in checkpoint["state_dict"].items()
+    })
     model_state_dict = model.state_dict()
     # Filter out keys that are not in the model's current state dict
-    checkpoint["state_dict"] = {
-        k: v for k, v in checkpoint["state_dict"].items() if k in model_state_dict
-    }
+    checkpoint["state_dict"] = {k: v for k, v in checkpoint["state_dict"].items() if k in model_state_dict}
     model.load_state_dict(checkpoint["state_dict"])
-    
+
     return model

@@ -27,11 +27,7 @@ class AntiBurst(nn.Module):
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.ab_params = nn.Parameter(
-            torch.from_numpy(
-                np.array([args.ab_w, args.ab_b, args.ab_p], dtype=np.float32)
-            )
-        )
+        self.ab_params = nn.Parameter(torch.from_numpy(np.array([args.ab_w, args.ab_b, args.ab_p], dtype=np.float32)))
 
     def forward(self, x):
         """
@@ -217,18 +213,14 @@ class NetVLAD(nn.Module):
         self.args = args
         if self.args.antiburst:
             self.ab_params = nn.Parameter(
-                torch.from_numpy(
-                    np.array([args.ab_w, args.ab_b, args.ab_p], dtype=np.float32)
-                ),
+                torch.from_numpy(np.array([args.ab_w, args.ab_b, args.ab_p], dtype=np.float32)),
                 requires_grad=not self.args.ab_fixed,
             )
             if self.args.ab_gen == 1:
                 # create a 3 x num_cc matrix to select ab_params from
                 self.ab_cc = nn.Parameter(torch.ones(clusters_num, 3))
         if self.args.ab_t is not None:
-            self.ab_t = nn.Parameter(
-                torch.from_numpy(np.array([self.args.ab_t], dtype=np.float32))
-            )
+            self.ab_t = nn.Parameter(torch.from_numpy(np.array([self.args.ab_t], dtype=np.float32)))
         if self.args.ab_kp is not None:
             self.ab_kp = nn.Sequential(
                 nn.Conv2d(dims, self.args.ab_kp, kernel_size=(1, 1)),
@@ -245,15 +237,9 @@ class NetVLAD(nn.Module):
         self.alpha = (-np.log(0.01) / np.mean(dots[0, :] - dots[1, :])).item()
         self.centroids = nn.Parameter(torch.from_numpy(centroids))
         if self.work_with_tokens:
-            self.conv.weight = nn.Parameter(
-                torch.from_numpy(self.alpha * centroids_assign).unsqueeze(2)
-            )
+            self.conv.weight = nn.Parameter(torch.from_numpy(self.alpha * centroids_assign).unsqueeze(2))
         else:
-            self.conv.weight = nn.Parameter(
-                torch.from_numpy(self.alpha * centroids_assign)
-                .unsqueeze(2)
-                .unsqueeze(3)
-            )
+            self.conv.weight = nn.Parameter(torch.from_numpy(self.alpha * centroids_assign).unsqueeze(2).unsqueeze(3))
         self.conv.bias = None
         if pcaData is not None:
             if self.args.nv_pca_randinit:
@@ -279,9 +265,7 @@ class NetVLAD(nn.Module):
                 x_flatten = self.mlp(x_flatten.permute(0, 2, 1)).permute(0, 2, 1)
             else:
                 x_flatten = x_flatten - self.pca_mean[None, :, None]
-                x_flatten = (x_flatten.permute(0, 2, 1) @ self.pca_rot.T).permute(
-                    0, 2, 1
-                )
+                x_flatten = (x_flatten.permute(0, 2, 1) @ self.pca_rot.T).permute(0, 2, 1)
             if self.normalize_input:
                 x_flatten = F.normalize(x_flatten, p=2, dim=1)  # Across descriptor dim
             D = x_flatten.shape[1]
@@ -300,26 +284,18 @@ class NetVLAD(nn.Module):
             do_inv = True if self.args.ab_inv else False
             do_soft = True if self.args.ab_soft else False
             if self.args.ab_gen == 1:
-                ab_params_gen = (
-                    soft_assign.permute(0, 2, 1) @ self.ab_cc
-                )  # -> Batch x N_elems x 3
-                ab_params_gen = ab_params_gen.permute(2, 0, 1).unsqueeze(
-                    -1
-                )  # -> 3 x Batch x N_elems x 1
+                ab_params_gen = soft_assign.permute(0, 2, 1) @ self.ab_cc  # -> Batch x N_elems x 3
+                ab_params_gen = ab_params_gen.permute(2, 0, 1).unsqueeze(-1)  # -> 3 x Batch x N_elems x 1
             if self.args.ab_testOnly:
                 if self.args.ab_t is None:
-                    ab_params = torch.tensor(
-                        [self.args.ab_w, self.args.ab_b, self.args.ab_p]
-                    )
+                    ab_params = torch.tensor([self.args.ab_w, self.args.ab_b, self.args.ab_p])
                     w_burst = (
                         getWeights(selfDis, ab_params, use_relu, do_inv, do_soft)
                         if wParams is None
                         else getWeights(selfDis, wParams, use_relu)
                     )
                 else:
-                    w_burst = torch.count_nonzero(
-                        F.relu(selfDis + self.args.ab_t), dim=-1
-                    )
+                    w_burst = torch.count_nonzero(F.relu(selfDis + self.args.ab_t), dim=-1)
             else:
                 if self.args.ab_t is None:
                     if self.args.ab_gen == 1:
@@ -331,29 +307,20 @@ class NetVLAD(nn.Module):
                     w_burst = getWeights(selfDis, ab_params, use_relu, do_inv, do_soft)
                 else:
                     # w_burst = torch.sign(F.relu(selfDis + self.ab_t)).sum(-1)
-                    w_burst = torch.sigmoid(
-                        self.ab_params[0] * F.relu(selfDis + self.ab_t)
-                    ).sum(-1)
+                    w_burst = torch.sigmoid(self.ab_params[0] * F.relu(selfDis + self.ab_t)).sum(-1)
             soft_assign = soft_assign / w_burst[:, None, :]
         elif self.args.ab_kp:
             w = torch.softmax(self.ab_kp(x).view(N, H * W), dim=-1)
             soft_assign = soft_assign / w[:, None, :]
-        vlad = torch.zeros(
-            [N, self.clusters_num, D], dtype=x_flatten.dtype, device=x_flatten.device
-        )
+        vlad = torch.zeros([N, self.clusters_num, D], dtype=x_flatten.dtype, device=x_flatten.device)
         # not use for loop, fast
         if self.args.forLoopAlt:
-            vlad = (
-                (x_flatten[:, None, :, :] - self.centroids[None, :, :, None])
-                * soft_assign[:, :, None, :]
-            ).sum(-1)
+            vlad = ((x_flatten[:, None, :, :] - self.centroids[None, :, :, None]) * soft_assign[:, :, None, :]).sum(-1)
         else:
-            for D in range(
-                self.clusters_num
-            ):  # Slower than non-looped, but lower memory usage
-                residual = x_flatten.unsqueeze(0).permute(1, 0, 2, 3) - self.centroids[
-                    D : D + 1, :
-                ].expand(x_flatten.size(-1), -1, -1).permute(1, 2, 0).unsqueeze(0)
+            for D in range(self.clusters_num):  # Slower than non-looped, but lower memory usage
+                residual = x_flatten.unsqueeze(0).permute(1, 0, 2, 3) - self.centroids[D : D + 1, :].expand(
+                    x_flatten.size(-1), -1, -1
+                ).permute(1, 2, 0).unsqueeze(0)
                 residual = residual * soft_assign[:, D : D + 1, :].unsqueeze(2)
                 vlad[:, D : D + 1, :] = residual.sum(dim=-1)
         vlad = F.normalize(vlad, p=2, dim=2)  # intra-normalization
@@ -364,21 +331,15 @@ class NetVLAD(nn.Module):
             os.makedirs(dirPath, exist_ok=True)
             results = {}
             for i in range(N):
-                image_id = labels[
-                    i
-                ].item()  # Assuming labels are numpy array of image IDs
+                image_id = labels[i].item()  # Assuming labels are numpy array of image IDs
                 file_path = os.path.join(dirPath, f"{image_id}.npz")
                 if not os.path.exists(file_path):
                     results = {
                         "soft_assign_alpha": soft_assign_alpha[i].cpu().numpy()
                         if soft_assign_alpha is not None
                         else None,
-                        "selfDis": selfDis[i].cpu().numpy()
-                        if selfDis is not None
-                        else None,
-                        "w_burst": w_burst[i].cpu().numpy()
-                        if w_burst is not None
-                        else None,
+                        "selfDis": selfDis[i].cpu().numpy() if selfDis is not None else None,
+                        "w_burst": w_burst[i].cpu().numpy() if w_burst is not None else None,
                         "soft_assign_adj": soft_assign[i].cpu().numpy(),
                         "vlad": vlad[i].cpu().numpy(),
                     }
@@ -394,9 +355,7 @@ class NetVLAD(nn.Module):
         descs_num_per_image = 100
         images_num = math.ceil(descriptors_num / descs_num_per_image)
         total_cluster_ds_images = cluster_ds.total_nb_images
-        random_sampler = SubsetRandomSampler(
-            np.random.choice(len(cluster_ds), images_num, replace=False)
-        )
+        random_sampler = SubsetRandomSampler(np.random.choice(len(cluster_ds), images_num, replace=False))
         random_dl = DataLoader(
             dataset=cluster_ds,
             num_workers=args.num_workers,
@@ -419,19 +378,13 @@ class NetVLAD(nn.Module):
                 logging.debug(f"Input shape: {inputs.shape}")
                 outputs = backbone(inputs)
                 norm_outputs = F.normalize(outputs, p=2, dim=1)
-                image_descriptors = norm_outputs.view(
-                    norm_outputs.shape[0], self.dim, -1
-                ).permute(0, 2, 1)
+                image_descriptors = norm_outputs.view(norm_outputs.shape[0], self.dim, -1).permute(0, 2, 1)
                 image_descriptors = image_descriptors.cpu().numpy()
                 batchix = iteration * args.infer_batch_size * descs_num_per_image
                 for ix in range(image_descriptors.shape[0]):
-                    sample = np.random.choice(
-                        image_descriptors.shape[1], descs_num_per_image, replace=False
-                    )
+                    sample = np.random.choice(image_descriptors.shape[1], descs_num_per_image, replace=False)
                     startix = batchix + ix * descs_num_per_image
-                    descriptors[
-                        startix : startix + descs_num_per_image, :
-                    ] = image_descriptors[ix, sample, :]
+                    descriptors[startix : startix + descs_num_per_image, :] = image_descriptors[ix, sample, :]
         if args.nv_pca is not None:
             if args.nv_pca_alt:
                 w, b = (
@@ -441,9 +394,7 @@ class NetVLAD(nn.Module):
                 descriptors = descriptors @ w.T + b
                 pcaData = None
             elif args.nv_pca_alt_mlp:
-                descriptors = (
-                    self.mlp(torch.from_numpy(descriptors)).detach().cpu().numpy()
-                )
+                descriptors = self.mlp(torch.from_numpy(descriptors)).detach().cpu().numpy()
                 pcaData = None
             else:
                 pca = PCA(args.nv_pca, random_state=0)
@@ -472,20 +423,12 @@ class CRNModule(nn.Module):
     def __init__(self, dim):
         super().__init__()
         # Downsample pooling
-        self.downsample_pool = nn.AvgPool2d(
-            kernel_size=3, stride=(2, 2), padding=0, ceil_mode=True
-        )
+        self.downsample_pool = nn.AvgPool2d(kernel_size=3, stride=(2, 2), padding=0, ceil_mode=True)
 
         # Multiscale Context Filters
-        self.filter_3_3 = nn.Conv2d(
-            in_channels=dim, out_channels=32, kernel_size=(3, 3), padding=1
-        )
-        self.filter_5_5 = nn.Conv2d(
-            in_channels=dim, out_channels=32, kernel_size=(5, 5), padding=2
-        )
-        self.filter_7_7 = nn.Conv2d(
-            in_channels=dim, out_channels=20, kernel_size=(7, 7), padding=3
-        )
+        self.filter_3_3 = nn.Conv2d(in_channels=dim, out_channels=32, kernel_size=(3, 3), padding=1)
+        self.filter_5_5 = nn.Conv2d(in_channels=dim, out_channels=32, kernel_size=(5, 5), padding=2)
+        self.filter_7_7 = nn.Conv2d(in_channels=dim, out_channels=20, kernel_size=(7, 7), padding=3)
 
         # Accumulation weight
         self.acc_w = nn.Conv2d(in_channels=84, out_channels=1, kernel_size=(1, 1))
@@ -544,15 +487,11 @@ class CRN(NetVLAD):
         # Weight soft_assign using CRN's mask
         soft_assign = soft_assign * mask.view(N, 1, H * W)
 
-        vlad = torch.zeros(
-            [N, self.clusters_num, D], dtype=x_flatten.dtype, device=x_flatten.device
-        )
-        for D in range(
-            self.clusters_num
-        ):  # Slower than non-looped, but lower memory usage
-            residual = x_flatten.unsqueeze(0).permute(1, 0, 2, 3) - self.centroids[
-                D : D + 1, :
-            ].expand(x_flatten.size(-1), -1, -1).permute(1, 2, 0).unsqueeze(0)
+        vlad = torch.zeros([N, self.clusters_num, D], dtype=x_flatten.dtype, device=x_flatten.device)
+        for D in range(self.clusters_num):  # Slower than non-looped, but lower memory usage
+            residual = x_flatten.unsqueeze(0).permute(1, 0, 2, 3) - self.centroids[D : D + 1, :].expand(
+                x_flatten.size(-1), -1, -1
+            ).permute(1, 2, 0).unsqueeze(0)
             residual = residual * soft_assign[:, D : D + 1, :].unsqueeze(2)
             vlad[:, D : D + 1, :] = residual.sum(dim=-1)
 

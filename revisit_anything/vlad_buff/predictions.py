@@ -1,34 +1,10 @@
-import sys
-import torch
-import logging
-import multiprocessing
-from datetime import datetime
-from collections import OrderedDict
-import wandb
-import random
 import numpy as np
 import argparse
-from vpr_model import VPRModel
 import pandas as pd
 import matplotlib.pyplot as plt
 from PIL import Image
-import faiss
-import torch
-import logging
-import numpy as np
-from tqdm import tqdm
-from torch.utils.data import DataLoader
-from torch.utils.data.dataset import Subset
-from os.path import join
 from matplotlib.patches import Rectangle
 import os
-from glob import glob
-from PIL import Image, ImageFile
-import torch.utils.data as data
-import torchvision.transforms as transforms
-from sklearn.neighbors import NearestNeighbors
-from os.path import join
-import torchvision.transforms as T
 from eval import get_val_dataset
 
 VAL_DATASETS = [
@@ -48,9 +24,7 @@ VAL_DATASETS = [
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--dataset_name", type=str, help="Relative path of the dataset")
     parser.add_argument(
         "--resize",
@@ -103,9 +77,7 @@ def get_recalls(args, eval_ds, predictions, loc_rad=None, ground_truth=None):
         recalls = recalls / eval_ds.num_queries * 100
     else:
         recalls = recalls / eval_ds.queries_num * 100
-    recalls_str = ", ".join(
-        [f"R@{val}: {rec:.1f}" for val, rec in zip(RECALL_VALUES, recalls)]
-    )
+    recalls_str = ", ".join([f"R@{val}: {rec:.1f}" for val, rec in zip(RECALL_VALUES, recalls)])
 
     return recalls, recalls_str
 
@@ -130,9 +102,7 @@ def generate_predictions(args, eval_ds, ground_truth):
         # Load predictions
         data = np.load(path)
         predictions[baseline_name] = data["predictions"]  # Adjust key if necessary
-        recalls[baseline_name], _ = get_recalls(
-            args, eval_ds, predictions[baseline_name], ground_truth=ground_truth
-        )
+        recalls[baseline_name], _ = get_recalls(args, eval_ds, predictions[baseline_name], ground_truth=ground_truth)
 
     # Load predictions for your method
     your_method_name = "your_method"  # Or extract similarly if needed
@@ -142,73 +112,57 @@ def generate_predictions(args, eval_ds, ground_truth):
     # print(predictions)
     # Compute positives for the queries (assuming eval_ds is defined)
     positives_per_query = ground_truth
-    recalls[method_name], _ = get_recalls(
-        args, eval_ds, predictions[your_method_name], ground_truth=ground_truth
-    )
+    recalls[method_name], _ = get_recalls(args, eval_ds, predictions[your_method_name], ground_truth=ground_truth)
 
     # Compare baseline predictions with your method
     for baseline, baseline_preds in predictions.items():
         if baseline != your_method_name:
             for query_index, pred in enumerate(baseline_preds):
-                correct = np.any(
-                    np.in1d(pred[: RECALL_VALUES[0]], positives_per_query[query_index])
-                )
+                correct = np.any(np.in1d(pred[: RECALL_VALUES[0]], positives_per_query[query_index]))
                 if not correct:
                     # Incorrect prediction by the baseline
                     correct = np.any(
                         np.in1d(
-                            predictions[your_method_name][query_index][
-                                : RECALL_VALUES[0]
-                            ],
+                            predictions[your_method_name][query_index][: RECALL_VALUES[0]],
                             positives_per_query[query_index],
                         )
                     )
                     if correct:
                         # Corrected by your method
-                        results_list.append(
-                            {
-                                "Baseline": baseline,
-                                "YourMethod": method_name,
-                                "QueryIndex": query_index,
-                                "GT": positives_per_query[query_index],
-                                "BaselineTop1Prediction": pred[0],
-                                "CorrectedByBaseline": False,
-                                "CorrectedByYourMethod": True,
-                                "YourMethodTop1Prediction": predictions[
-                                    your_method_name
-                                ][query_index][0],
-                                "YourMethodR@1": recalls[method_name][0],
-                                "BaselineR@1": recalls[baseline][0],
-                            }
-                        )
+                        results_list.append({
+                            "Baseline": baseline,
+                            "YourMethod": method_name,
+                            "QueryIndex": query_index,
+                            "GT": positives_per_query[query_index],
+                            "BaselineTop1Prediction": pred[0],
+                            "CorrectedByBaseline": False,
+                            "CorrectedByYourMethod": True,
+                            "YourMethodTop1Prediction": predictions[your_method_name][query_index][0],
+                            "YourMethodR@1": recalls[method_name][0],
+                            "BaselineR@1": recalls[baseline][0],
+                        })
                 else:
                     # correct prediction by the baseline
                     correct = np.any(
                         np.in1d(
-                            predictions[your_method_name][query_index][
-                                : RECALL_VALUES[0]
-                            ],
+                            predictions[your_method_name][query_index][: RECALL_VALUES[0]],
                             positives_per_query[query_index],
                         )
                     )
                     if not correct:
                         # Not corrected by your method
-                        results_list.append(
-                            {
-                                "Baseline": baseline,
-                                "YourMethod": method_name,
-                                "QueryIndex": query_index,
-                                "GT": positives_per_query[query_index],
-                                "BaselineTop1Prediction": pred[0],
-                                "CorrectedByBaseline": True,
-                                "CorrectedByYourMethod": False,
-                                "YourMethodTop1Prediction": predictions[
-                                    your_method_name
-                                ][query_index][0],
-                                "YourMethodR@1": recalls[method_name][0],
-                                "BaselineR@1": recalls[baseline][0],
-                            }
-                        )
+                        results_list.append({
+                            "Baseline": baseline,
+                            "YourMethod": method_name,
+                            "QueryIndex": query_index,
+                            "GT": positives_per_query[query_index],
+                            "BaselineTop1Prediction": pred[0],
+                            "CorrectedByBaseline": True,
+                            "CorrectedByYourMethod": False,
+                            "YourMethodTop1Prediction": predictions[your_method_name][query_index][0],
+                            "YourMethodR@1": recalls[method_name][0],
+                            "BaselineR@1": recalls[baseline][0],
+                        })
             #      else:
             #         #corrected by your method
             #        results_list.append({'Baseline': baseline, 'QueryIndex': query_index, 'GT': positives_per_query[query_index],'BaselineTop1Prediction': pred[0],  'CorrectedByBaseline': True, 'CorrectedByYourMethod': True,\
@@ -236,27 +190,17 @@ def generate_predictions(args, eval_ds, ground_truth):
             your_method = row["YourMethod"]
 
             # Load query image
-            query_image_path = os.path.join(
-                eval_ds.dataset_root, eval_ds.qImages[query_index]
-            )
+            query_image_path = os.path.join(eval_ds.dataset_root, eval_ds.qImages[query_index])
             query_image = Image.open(query_image_path)
 
             # Load the baseline's  prediction image
-            baseline_pred_index = predictions[baseline][query_index][
-                0
-            ]  # Taking the top-1 prediction
-            baseline_image_path = os.path.join(
-                eval_ds.dataset_root, eval_ds.dbImages[baseline_pred_index]
-            )
+            baseline_pred_index = predictions[baseline][query_index][0]  # Taking the top-1 prediction
+            baseline_image_path = os.path.join(eval_ds.dataset_root, eval_ds.dbImages[baseline_pred_index])
             baseline_image = Image.open(baseline_image_path)
 
             # Load your method's  prediction image
-            your_pred_index = predictions[your_method_name][query_index][
-                0
-            ]  # Taking the top-1 prediction
-            your_image_path = os.path.join(
-                eval_ds.dataset_root, eval_ds.dbImages[your_pred_index]
-            )
+            your_pred_index = predictions[your_method_name][query_index][0]  # Taking the top-1 prediction
+            your_image_path = os.path.join(eval_ds.dataset_root, eval_ds.dbImages[your_pred_index])
             your_image = Image.open(your_image_path)
 
             # Create subplot: Query vs. Baseline  vs. Your Method /
@@ -322,9 +266,7 @@ def main():
     args = parse_args()
 
     if args.dataset_name in VAL_DATASETS:
-        ds, num_references, num_queries, ground_truth = get_val_dataset(
-            args.dataset_name, args.resize
-        )
+        ds, num_references, num_queries, ground_truth = get_val_dataset(args.dataset_name, args.resize)
         generate_predictions(args, ds, ground_truth)
         print(args.dataset_name)
 

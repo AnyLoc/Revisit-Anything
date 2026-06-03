@@ -5,18 +5,12 @@ from torch.utils.data import Dataset
 from sklearn.neighbors import NearestNeighbors
 from scipy.spatial.transform import Rotation
 
-DATASET_ROOT = (
-    "./VPR-codebase/VPR-datasets-downloader/datasets/baidu/images/test/"
-)
-GT_ROOT = (
-    "./datasets/" # BECAREFUL, this is the ground truth that comes with GSV-Cities
-)
+DATASET_ROOT = "./VPR-codebase/VPR-datasets-downloader/datasets/baidu/images/test/"
+GT_ROOT = "./datasets/"  # BECAREFUL, this is the ground truth that comes with GSV-Cities
 
 path_obj = Path(DATASET_ROOT)
 if not path_obj.exists():
-    raise Exception(
-        f"Please make sure the path {DATASET_ROOT} to baidu dataset is correct"
-    )
+    raise Exception(f"Please make sure the path {DATASET_ROOT} to baidu dataset is correct")
 
 if not path_obj.joinpath("database") or not path_obj.joinpath("queries"):
     raise Exception(
@@ -109,17 +103,10 @@ class BaiduDataset(Dataset):
 
             for i in range(len(self.q_gt_arr)):  # iterate over all q_gt_array
                 self.ang_dist = []
-                for j in range(
-                    len(self.soft_dist_positives_per_query[i])
-                ):  # iterate over all positive queries
+                for j in range(len(self.soft_dist_positives_per_query[i])):  # iterate over all positive queries
                     # print(self.q_gt_arr - self.db_gt_arr[self.soft_positives_per_query[i][j]])
                     ang_diff = np.mean(
-                        np.abs(
-                            self.q_gt_arr_euler[i]
-                            - self.db_gt_arr_euler[
-                                self.soft_dist_positives_per_query[i][j]
-                            ]
-                        )
+                        np.abs(self.q_gt_arr_euler[i] - self.db_gt_arr_euler[self.soft_dist_positives_per_query[i][j]])
                     )
                     if ang_diff < self.ang_thresh:
                         self.ang_dist.append(self.soft_dist_positives_per_query[i][j])
@@ -138,17 +125,10 @@ class BaiduDataset(Dataset):
 
             for i in range(len(self.db_gt_arr)):  # iterate over all q_gt_array
                 self.ang_dist = []
-                for j in range(
-                    len(self.soft_dist_positives_per_db[i])
-                ):  # iterate over all positive queries
+                for j in range(len(self.soft_dist_positives_per_db[i])):  # iterate over all positive queries
                     # print(self.q_gt_arr - self.db_gt_arr[self.soft_positives_per_db[i][j]])
                     ang_diff = np.mean(
-                        np.abs(
-                            self.q_gt_arr_euler[i]
-                            - self.db_gt_arr_euler[
-                                self.soft_dist_positives_per_db[i][j]
-                            ]
-                        )
+                        np.abs(self.q_gt_arr_euler[i] - self.db_gt_arr_euler[self.soft_dist_positives_per_db[i][j]])
                     )
                     if ang_diff < self.ang_thresh:
                         self.ang_dist.append(self.soft_dist_positives_per_db[i][j])

@@ -15,9 +15,7 @@ class ConvAP(nn.Module):
 
     def __init__(self, in_channels, out_channels=512, s1=2, s2=2):
         super(ConvAP, self).__init__()
-        self.channel_pool = nn.Conv2d(
-            in_channels=in_channels, out_channels=out_channels, kernel_size=1, bias=True
-        )
+        self.channel_pool = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, bias=True)
         self.AAP = nn.AdaptiveAvgPool2d((s1, s2))
 
     def forward(self, x):

@@ -1,16 +1,11 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-from skimage.measure import label
-from skimage.color import label2rgb
 from PIL import Image
 import seaborn as sns
 import imageio
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans
-import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.metrics.pairwise import cosine_similarity
 import argparse
@@ -65,8 +60,8 @@ def load_and_visualize(
         file_path_vb = os.path.join(dir_path_vb, f"{image_id}.npz")
         file_path_nv = os.path.join(dir_path_nv, f"{image_id}.npz")
     else:
-        file_path_vb = os.path.join(dir_path_vb, f"{num_ref+image_id}.npz")
-        file_path_nv = os.path.join(dir_path_nv, f"{num_ref+image_id}.npz")
+        file_path_vb = os.path.join(dir_path_vb, f"{num_ref + image_id}.npz")
+        file_path_nv = os.path.join(dir_path_nv, f"{num_ref + image_id}.npz")
 
     if os.path.exists(file_path_vb):
         print(file_path_vb)
@@ -94,10 +89,7 @@ def load_and_visualize(
         vlad_nv = data_nv.get("vlad")
 
         if traverse != "database":
-            img_path = (
-                ev_dataset.dataset_root
-                + ev_dataset.images[ev_dataset.num_references + image_id]
-            )
+            img_path = ev_dataset.dataset_root + ev_dataset.images[ev_dataset.num_references + image_id]
 
         else:
             img_path = ev_dataset.dataset_root + ev_dataset.images[image_id]
@@ -123,7 +115,9 @@ def load_and_visualize(
                 )
                 plt.colorbar(im1)
                 plt.axis("off")
-                cluster_img_path = f"{analysis_dir}/{baseline_name}/{ds}_{baseline_name}_{img_type}_{image_id}_{cluster}.png"
+                cluster_img_path = (
+                    f"{analysis_dir}/{baseline_name}/{ds}_{baseline_name}_{img_type}_{image_id}_{cluster}.png"
+                )
                 plt.savefig(cluster_img_path, bbox_inches="tight", pad_inches=0)
                 plt.close(fig)
 
@@ -166,9 +160,7 @@ def load_and_visualize(
                 plt.colorbar(im, cax=cax)
 
             if soft_assign_alpha_nv is not None:
-                axes[0, 1].set_title(
-                    f"{baseline_name}:: SA_A: {soft_assign_alpha_nv.shape}, Cluster: {cluster}"
-                )
+                axes[0, 1].set_title(f"{baseline_name}:: SA_A: {soft_assign_alpha_nv.shape}, Cluster: {cluster}")
                 axes[0, 1].imshow(image_resized)
                 im1 = axes[0, 1].imshow(
                     soft_assign_alpha_nv[cluster, :].reshape(w, w),
@@ -188,9 +180,7 @@ def load_and_visualize(
                 )
                 plt.colorbar(im2)
             if soft_assign_alpha_vb is not None:
-                axes[0, 3].set_title(
-                    f"{method_our}:: SA_A: {soft_assign_alpha_vb.shape}, Cluster: {cluster}"
-                )
+                axes[0, 3].set_title(f"{method_our}:: SA_A: {soft_assign_alpha_vb.shape}, Cluster: {cluster}")
                 axes[0, 3].imshow(image_resized)
                 im3 = axes[0, 3].imshow(
                     soft_assign_alpha_vb[cluster, :].reshape(w, w),
@@ -213,25 +203,19 @@ def load_and_visualize(
             if soft_assign_alpha_nv is not None:
                 max_intensity = max(
                     max_intensity,
-                    visualize_pixel_intensities(
-                        soft_assign_alpha_nv[cluster, :].reshape(w, w), axes[1, 1]
-                    ),
+                    visualize_pixel_intensities(soft_assign_alpha_nv[cluster, :].reshape(w, w), axes[1, 1]),
                 )
 
             if soft_assign_adj_vb is not None:
                 max_intensity = max(
                     max_intensity,
-                    visualize_pixel_intensities(
-                        soft_assign_adj_vb[cluster, :].reshape(w, w), axes[1, 2]
-                    ),
+                    visualize_pixel_intensities(soft_assign_adj_vb[cluster, :].reshape(w, w), axes[1, 2]),
                 )
 
             if soft_assign_alpha_vb is not None:
                 max_intensity = max(
                     max_intensity,
-                    visualize_pixel_intensities(
-                        soft_assign_alpha_vb[cluster, :].reshape(w, w), axes[1, 3]
-                    ),
+                    visualize_pixel_intensities(soft_assign_alpha_vb[cluster, :].reshape(w, w), axes[1, 3]),
                 )
 
             if w_burst is not None:
@@ -293,9 +277,7 @@ def visualize_pixel_intensities(data, ax):
 
 
 def compute_triplet_margin(query, positive, negative):
-    return np.linalg.norm(query - negative, axis=1) - np.linalg.norm(
-        query - positive, axis=1
-    )
+    return np.linalg.norm(query - negative, axis=1) - np.linalg.norm(query - positive, axis=1)
 
 
 def rank_clusters(margins):
@@ -337,24 +319,16 @@ def HoD(
     fig, axes = plt.subplots(1, 2, figsize=(15, 7))
 
     # vlad-buff
-    axes[0].hist(
-        dist_pos_vb, bins=30, alpha=0.5, label="Query-Positive Distances", color="g"
-    )
-    axes[0].hist(
-        dist_neg_vb, bins=30, alpha=0.5, label="Query-Negative Distances", color="r"
-    )
+    axes[0].hist(dist_pos_vb, bins=30, alpha=0.5, label="Query-Positive Distances", color="g")
+    axes[0].hist(dist_neg_vb, bins=30, alpha=0.5, label="Query-Negative Distances", color="r")
     axes[0].legend()
     axes[0].set_title(f"Histogram of Distances {method_our}")
     axes[0].set_xlabel("Distance")
     axes[0].set_ylabel("Frequency")
 
     # NV
-    axes[1].hist(
-        dist_pos_nv, bins=30, alpha=0.5, label="Query-Positive Distances", color="g"
-    )
-    axes[1].hist(
-        dist_neg_nv, bins=30, alpha=0.5, label="Query-Negative Distances", color="r"
-    )
+    axes[1].hist(dist_pos_nv, bins=30, alpha=0.5, label="Query-Positive Distances", color="g")
+    axes[1].hist(dist_neg_nv, bins=30, alpha=0.5, label="Query-Negative Distances", color="r")
     axes[1].legend()
     axes[1].set_title(f"Histogram of Distances {baseline_name}")
     axes[1].set_xlabel("Distance")
@@ -390,12 +364,8 @@ def HoPD(
     combined_vlads_nv = np.vstack([vlad_q_nv, vlad_p_nv, vlad_n_nv])
 
     # Compute pairwise distances
-    pairwise_distances_vb = np.linalg.norm(
-        combined_vlads_vb[:, None] - combined_vlads_vb, axis=2
-    )
-    pairwise_distances_nv = np.linalg.norm(
-        combined_vlads_nv[:, None] - combined_vlads_nv, axis=2
-    )
+    pairwise_distances_vb = np.linalg.norm(combined_vlads_vb[:, None] - combined_vlads_vb, axis=2)
+    pairwise_distances_nv = np.linalg.norm(combined_vlads_nv[:, None] - combined_vlads_nv, axis=2)
 
     # Create labels for the heatmap
     heatmap_labels_vb = (
@@ -469,12 +439,8 @@ def plot_tsne(
     tsne_result_nv = tsne.fit_transform(all_vlads_nv)
 
     # Split t-SNE results back into query, positive, and negative
-    tsne_q_vb, tsne_p_vb, tsne_n_vb = np.split(
-        tsne_result_vb, [len(vlad_q_vb), len(vlad_p_vb) + len(vlad_n_vb)]
-    )
-    tsne_q_nv, tsne_p_nv, tsne_n_nv = np.split(
-        tsne_result_nv, [len(vlad_q_nv), len(vlad_p_nv) + len(vlad_n_nv)]
-    )
+    tsne_q_vb, tsne_p_vb, tsne_n_vb = np.split(tsne_result_vb, [len(vlad_q_vb), len(vlad_p_vb) + len(vlad_n_vb)])
+    tsne_q_nv, tsne_p_nv, tsne_n_nv = np.split(tsne_result_nv, [len(vlad_q_nv), len(vlad_p_nv) + len(vlad_n_nv)])
 
     # Create file paths for images
     image_paths_vb = {
@@ -483,12 +449,10 @@ def plot_tsne(
             for cluster in range(len(tsne_q_vb))
         ],
         "positive": [
-            f"{base_dir}/{method_our}/{ds}_{method_our}_Pos_{pos}_{cluster}.png"
-            for cluster in range(len(tsne_p_vb))
+            f"{base_dir}/{method_our}/{ds}_{method_our}_Pos_{pos}_{cluster}.png" for cluster in range(len(tsne_p_vb))
         ],
         "negative": [
-            f"{base_dir}/{method_our}/{ds}_{method_our}_Neg_{neg}_{cluster}.png"
-            for cluster in range(len(tsne_n_vb))
+            f"{base_dir}/{method_our}/{ds}_{method_our}_Neg_{neg}_{cluster}.png" for cluster in range(len(tsne_n_vb))
         ],
     }
 
@@ -511,28 +475,16 @@ def plot_tsne(
     fig, axes = plt.subplots(1, 2, figsize=(15, 7))
 
     # Your method
-    scatter_vb_query = axes[0].scatter(
-        tsne_q_vb[:, 0], tsne_q_vb[:, 1], color="r", label="query"
-    )
-    scatter_vb_positive = axes[0].scatter(
-        tsne_p_vb[:, 0], tsne_p_vb[:, 1], color="g", label="positive"
-    )
-    scatter_vb_negative = axes[0].scatter(
-        tsne_n_vb[:, 0], tsne_n_vb[:, 1], color="b", label="negative"
-    )
+    scatter_vb_query = axes[0].scatter(tsne_q_vb[:, 0], tsne_q_vb[:, 1], color="r", label="query")
+    scatter_vb_positive = axes[0].scatter(tsne_p_vb[:, 0], tsne_p_vb[:, 1], color="g", label="positive")
+    scatter_vb_negative = axes[0].scatter(tsne_n_vb[:, 0], tsne_n_vb[:, 1], color="b", label="negative")
     axes[0].set_title(f"t-SNE of VLAD Descriptors {method_our}")
     axes[0].legend()
 
     # baseline_name's method
-    scatter_nv_query = axes[1].scatter(
-        tsne_q_nv[:, 0], tsne_q_nv[:, 1], color="r", label="query"
-    )
-    scatter_nv_positive = axes[1].scatter(
-        tsne_p_nv[:, 0], tsne_p_nv[:, 1], color="g", label="positive"
-    )
-    scatter_nv_negative = axes[1].scatter(
-        tsne_n_nv[:, 0], tsne_n_nv[:, 1], color="b", label="negative"
-    )
+    scatter_nv_query = axes[1].scatter(tsne_q_nv[:, 0], tsne_q_nv[:, 1], color="r", label="query")
+    scatter_nv_positive = axes[1].scatter(tsne_p_nv[:, 0], tsne_p_nv[:, 1], color="g", label="positive")
+    scatter_nv_negative = axes[1].scatter(tsne_n_nv[:, 0], tsne_n_nv[:, 1], color="b", label="negative")
     axes[1].set_title(f"t-SNE of VLAD Descriptors {baseline_name}")
     axes[1].legend()
 
@@ -555,9 +507,7 @@ def plot_tsne(
     labels_nv_positive = create_tooltip(image_paths_nv, "positive", len(tsne_p_nv))
     labels_nv_negative = create_tooltip(image_paths_nv, "negative", len(tsne_n_nv))
 
-    tooltip_vb_query = plugins.PointHTMLTooltip(
-        scatter_vb_query, labels=labels_vb_query, voffset=10, hoffset=10
-    )
+    tooltip_vb_query = plugins.PointHTMLTooltip(scatter_vb_query, labels=labels_vb_query, voffset=10, hoffset=10)
     plugins.connect(fig, tooltip_vb_query)
     tooltip_vb_positive = plugins.PointHTMLTooltip(
         scatter_vb_positive, labels=labels_vb_positive, voffset=10, hoffset=10
@@ -568,9 +518,7 @@ def plot_tsne(
     )
     plugins.connect(fig, tooltip_vb_negative)
 
-    tooltip_nv_query = plugins.PointHTMLTooltip(
-        scatter_nv_query, labels=labels_nv_query, voffset=10, hoffset=10
-    )
+    tooltip_nv_query = plugins.PointHTMLTooltip(scatter_nv_query, labels=labels_nv_query, voffset=10, hoffset=10)
     plugins.connect(fig, tooltip_nv_query)
     tooltip_nv_positive = plugins.PointHTMLTooltip(
         scatter_nv_positive, labels=labels_nv_positive, voffset=10, hoffset=10
@@ -739,12 +687,8 @@ def plot_pca(
     pca_result_nv = pca.fit_transform(all_vlads_nv)
 
     # Split PCA results back into query, positive, and negative
-    pca_q_vb, pca_p_vb, pca_n_vb = np.split(
-        pca_result_vb, [len(vlad_q_vb), len(vlad_q_vb) + len(vlad_p_vb)]
-    )
-    pca_q_nv, pca_p_nv, pca_n_nv = np.split(
-        pca_result_nv, [len(vlad_q_nv), len(vlad_q_nv) + len(vlad_p_nv)]
-    )
+    pca_q_vb, pca_p_vb, pca_n_vb = np.split(pca_result_vb, [len(vlad_q_vb), len(vlad_q_vb) + len(vlad_p_vb)])
+    pca_q_nv, pca_p_nv, pca_n_nv = np.split(pca_result_nv, [len(vlad_q_nv), len(vlad_q_nv) + len(vlad_p_nv)])
 
     # Create relative file paths for images
     image_paths_vb = {
@@ -753,12 +697,10 @@ def plot_pca(
             for cluster in range(len(pca_q_vb))
         ],
         "positive": [
-            f"{base_dir}/{method_our}/{ds}_{method_our}_Pos_{pos}_{cluster}.png"
-            for cluster in range(len(pca_p_vb))
+            f"{base_dir}/{method_our}/{ds}_{method_our}_Pos_{pos}_{cluster}.png" for cluster in range(len(pca_p_vb))
         ],
         "negative": [
-            f"{base_dir}/{method_our}/{ds}_{method_our}_Neg_{neg}_{cluster}.png"
-            for cluster in range(len(pca_n_vb))
+            f"{base_dir}/{method_our}/{ds}_{method_our}_Neg_{neg}_{cluster}.png" for cluster in range(len(pca_n_vb))
         ],
     }
 
@@ -781,28 +723,16 @@ def plot_pca(
     fig, axes = plt.subplots(1, 2, figsize=(15, 7))
 
     # Your method
-    scatter_vb_query = axes[0].scatter(
-        pca_q_vb[:, 0], pca_q_vb[:, 1], color="r", label="query"
-    )
-    scatter_vb_positive = axes[0].scatter(
-        pca_p_vb[:, 0], pca_p_vb[:, 1], color="g", label="positive"
-    )
-    scatter_vb_negative = axes[0].scatter(
-        pca_n_vb[:, 0], pca_n_vb[:, 1], color="b", label="negative"
-    )
+    scatter_vb_query = axes[0].scatter(pca_q_vb[:, 0], pca_q_vb[:, 1], color="r", label="query")
+    scatter_vb_positive = axes[0].scatter(pca_p_vb[:, 0], pca_p_vb[:, 1], color="g", label="positive")
+    scatter_vb_negative = axes[0].scatter(pca_n_vb[:, 0], pca_n_vb[:, 1], color="b", label="negative")
     axes[0].set_title(f"PCA of VLAD Descriptors {method_our} ")
     axes[0].legend()
 
     # baseline_name's method
-    scatter_nv_query = axes[1].scatter(
-        pca_q_nv[:, 0], pca_q_nv[:, 1], color="r", label="query"
-    )
-    scatter_nv_positive = axes[1].scatter(
-        pca_p_nv[:, 0], pca_p_nv[:, 1], color="g", label="positive"
-    )
-    scatter_nv_negative = axes[1].scatter(
-        pca_n_nv[:, 0], pca_n_nv[:, 1], color="b", label="negative"
-    )
+    scatter_nv_query = axes[1].scatter(pca_q_nv[:, 0], pca_q_nv[:, 1], color="r", label="query")
+    scatter_nv_positive = axes[1].scatter(pca_p_nv[:, 0], pca_p_nv[:, 1], color="g", label="positive")
+    scatter_nv_negative = axes[1].scatter(pca_n_nv[:, 0], pca_n_nv[:, 1], color="b", label="negative")
     axes[1].set_title(f"PCA of VLAD Descriptors {baseline_name}")
     axes[1].legend()
 
@@ -825,9 +755,7 @@ def plot_pca(
     labels_nv_positive = create_tooltip(image_paths_nv, "positive", len(pca_p_nv))
     labels_nv_negative = create_tooltip(image_paths_nv, "negative", len(pca_n_nv))
 
-    tooltip_vb_query = plugins.PointHTMLTooltip(
-        scatter_vb_query, labels=labels_vb_query, voffset=10, hoffset=10
-    )
+    tooltip_vb_query = plugins.PointHTMLTooltip(scatter_vb_query, labels=labels_vb_query, voffset=10, hoffset=10)
     plugins.connect(fig, tooltip_vb_query)
     tooltip_vb_positive = plugins.PointHTMLTooltip(
         scatter_vb_positive, labels=labels_vb_positive, voffset=10, hoffset=10
@@ -838,9 +766,7 @@ def plot_pca(
     )
     plugins.connect(fig, tooltip_vb_negative)
 
-    tooltip_nv_query = plugins.PointHTMLTooltip(
-        scatter_nv_query, labels=labels_nv_query, voffset=10, hoffset=10
-    )
+    tooltip_nv_query = plugins.PointHTMLTooltip(scatter_nv_query, labels=labels_nv_query, voffset=10, hoffset=10)
     plugins.connect(fig, tooltip_nv_query)
     tooltip_nv_positive = plugins.PointHTMLTooltip(
         scatter_nv_positive, labels=labels_nv_positive, voffset=10, hoffset=10
@@ -878,9 +804,7 @@ def extract_method_name(path):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--dataset_name", type=str, help="Name of the dataset")
     parser.add_argument("--method_our", type=str, help="Name of the your method")
     parser.add_argument("--baseline_name", type=str, help="Name of the baseline")
@@ -1016,18 +940,12 @@ def main():
             #    print(f'rank_other: {rank_other}')
             # Compute cluster rank differences
             if correct:
-                cluster_rank_difference = compute_cluster_rank_difference(
-                    rank_vb, rank_other
-                )
+                cluster_rank_difference = compute_cluster_rank_difference(rank_vb, rank_other)
             else:
-                cluster_rank_difference = compute_cluster_rank_difference(
-                    rank_other, rank_vb
-                )
+                cluster_rank_difference = compute_cluster_rank_difference(rank_other, rank_vb)
 
             # print(f'(rank_other - rank_vb): {cluster_rank_difference[0]}')
-            print(
-                f"{query}:: Cluster with maximum change in : {cluster_rank_difference[1].item()}"
-            )
+            print(f"{query}:: Cluster with maximum change in : {cluster_rank_difference[1].item()}")
 
             clusterNo = cluster_rank_difference[1].item()
             qVLAD, q_regions = load_and_visualize(

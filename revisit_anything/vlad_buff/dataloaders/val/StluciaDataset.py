@@ -6,15 +6,11 @@ from sklearn.neighbors import NearestNeighbors
 
 
 DATASET_ROOT = "./datasets_vg/datasets/st_lucia/images/test/"
-GT_ROOT = (
-    "./datasets/"  # BECAREFUL, this is the ground truth that comes with GSV-Cities
-)
+GT_ROOT = "./datasets/"  # BECAREFUL, this is the ground truth that comes with GSV-Cities
 
 path_obj = Path(DATASET_ROOT)
 if not path_obj.exists():
-    raise Exception(
-        f"Please make sure the path {DATASET_ROOT} to st_lucia dataset is correct"
-    )
+    raise Exception(f"Please make sure the path {DATASET_ROOT} to st_lucia dataset is correct")
 
 if not path_obj.joinpath("database") or not path_obj.joinpath("queries"):
     raise Exception(
@@ -39,12 +35,10 @@ class StluciaDataset(Dataset):
         self.num_references = len(self.dbImages)
         self.num_queries = len(self.qImages)
 
-        self.database_utms = np.array(
-            [(path.split("@")[1], path.split("@")[2]) for path in self.dbImages]
-        ).astype(float)
-        self.queries_utms = np.array(
-            [(path.split("@")[1], path.split("@")[2]) for path in self.qImages]
-        ).astype(float)
+        self.database_utms = np.array([(path.split("@")[1], path.split("@")[2]) for path in self.dbImages]).astype(
+            float
+        )
+        self.queries_utms = np.array([(path.split("@")[1], path.split("@")[2]) for path in self.qImages]).astype(float)
 
         # ground truth
         self.ground_truth = self.get_positives(positive_dist_threshold)
@@ -63,7 +57,5 @@ class StluciaDataset(Dataset):
     def get_positives(self, rad):
         knn = NearestNeighbors(n_jobs=-1)
         knn.fit(self.database_utms)
-        positives = knn.radius_neighbors(
-            self.queries_utms, radius=rad, return_distance=False
-        )
+        positives = knn.radius_neighbors(self.queries_utms, radius=rad, return_distance=False)
         return positives

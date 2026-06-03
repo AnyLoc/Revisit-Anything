@@ -12,9 +12,7 @@ class GeM(nn.Module):
         self.eps = eps
 
     def forward(self, x):
-        return F.avg_pool2d(
-            x.clamp(min=self.eps).pow(self.p), (x.size(-2), x.size(-1))
-        ).pow(1.0 / self.p)
+        return F.avg_pool2d(x.clamp(min=self.eps).pow(self.p), (x.size(-2), x.size(-1))).pow(1.0 / self.p)
 
 
 class CosPlace(nn.Module):

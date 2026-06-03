@@ -1,26 +1,19 @@
 from torch.utils.data import Dataset
-import torchvision.transforms as T
 
 import numpy as np
 from PIL import Image
 from pathlib import Path
 
 DATASET_ROOT = "./Mapillary_Street_Level_Sequences/"
-GT_ROOT = (
-    "./datasets/" # BECAREFUL, this is the ground truth that comes with GSV-Cities
-)
+GT_ROOT = "./datasets/"  # BECAREFUL, this is the ground truth that comes with GSV-Cities
 
 
 class MSLSTest(Dataset):
     def __init__(self, input_transform=None):
         self.input_transform = input_transform
         self.dataset_root = DATASET_ROOT
-        self.dbImages = np.load(
-            GT_ROOT + "msls_test/msls_test_dbImages.npy", allow_pickle=True
-        )
-        self.qImages = np.load(
-            GT_ROOT + "msls_test/msls_test_qImages.npy", allow_pickle=True
-        )
+        self.dbImages = np.load(GT_ROOT + "msls_test/msls_test_dbImages.npy", allow_pickle=True)
+        self.qImages = np.load(GT_ROOT + "msls_test/msls_test_qImages.npy", allow_pickle=True)
 
         # reference images then query images
         self.images = np.concatenate((self.dbImages, self.qImages))

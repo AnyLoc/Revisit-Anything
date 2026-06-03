@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torchvision
-import numpy as np
 
 
 class ResNet(nn.Module):
@@ -38,9 +37,7 @@ class ResNet(nn.Module):
 
         if "swsl" in model_name or "ssl" in model_name:
             # These are the semi supervised and weakly semi supervised weights from Facebook
-            self.model = torch.hub.load(
-                "facebookresearch/semi-supervised-ImageNet1K-models", model_name
-            )
+            self.model = torch.hub.load("facebookresearch/semi-supervised-ImageNet1K-models", model_name)
         else:
             if "resnext50" in model_name:
                 self.model = torchvision.models.resnext50_32x4d(weights=weights)
@@ -85,12 +82,8 @@ class ResNet(nn.Module):
         if "34" in model_name or "18" in model_name:
             out_channels = 512
 
-        self.out_channels = (
-            out_channels // 2 if self.model.layer4 is None else out_channels
-        )
-        self.out_channels = (
-            self.out_channels // 2 if self.model.layer3 is None else self.out_channels
-        )
+        self.out_channels = out_channels // 2 if self.model.layer4 is None else out_channels
+        self.out_channels = self.out_channels // 2 if self.model.layer3 is None else self.out_channels
 
     def forward(self, x):
         x = self.model.conv1(x)

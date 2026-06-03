@@ -46,17 +46,10 @@ class MixVPR(nn.Module):
         self.out_rows = out_rows  # row wise projection dimesion
 
         self.mix_depth = mix_depth  # L the number of stacked FeatureMixers
-        self.mlp_ratio = (
-            mlp_ratio  # ratio of the mid projection layer in the mixer block
-        )
+        self.mlp_ratio = mlp_ratio  # ratio of the mid projection layer in the mixer block
 
         hw = in_h * in_w
-        self.mix = nn.Sequential(
-            *[
-                FeatureMixerLayer(in_dim=hw, mlp_ratio=mlp_ratio)
-                for _ in range(self.mix_depth)
-            ]
-        )
+        self.mix = nn.Sequential(*[FeatureMixerLayer(in_dim=hw, mlp_ratio=mlp_ratio) for _ in range(self.mix_depth)])
         self.channel_proj = nn.Linear(in_channels, out_channels)
         self.row_proj = nn.Linear(hw, out_rows)
 
@@ -77,7 +70,7 @@ class MixVPR(nn.Module):
 def print_nb_params(m):
     model_parameters = filter(lambda p: p.requires_grad, m.parameters())
     params = sum([np.prod(p.size()) for p in model_parameters])
-    print(f"Trainable parameters: {params/1e6:.3}M")
+    print(f"Trainable parameters: {params / 1e6:.3}M")
 
 
 def main():

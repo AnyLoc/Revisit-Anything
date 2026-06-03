@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Iterator
 
 import torch
 from loguru import logger
@@ -58,9 +58,7 @@ class PcaFitter:
         if not sampled:
             raise RuntimeError("No segments accumulated for PCA fit")
         seg_ft_vlad = torch.cat(sampled, dim=0)
-        logger.info(
-            f"Fitting PCA on {accumulated} segments (sampled from {total_segments} total)"
-        )
+        logger.info(f"Fitting PCA on {accumulated} segments (sampled from {total_segments} total)")
         logger.info(f"PCA fit: {seg_ft_vlad.shape}")
 
         if self.ctx.pca_backend == "sklearn":
@@ -90,9 +88,7 @@ class PcaFitter:
         """
         if buffer.numel() == 0:
             raise RuntimeError("Empty buffer for PCA fit")
-        logger.info(
-            f"PCA fit from buffer: {tuple(buffer.shape)} dtype={buffer.dtype}"
-        )
+        logger.info(f"PCA fit from buffer: {tuple(buffer.shape)} dtype={buffer.dtype}")
         if self.ctx.pca_backend == "torch_svd":
             return self._fit_torch_svd(buffer.float())
         if self.ctx.pca_backend == "sklearn":
@@ -119,14 +115,12 @@ class PcaFitter:
         # Oversample for stability of randomized SVD.
         q = min(self.n_components + 10, min(x_centered.shape))
         _, S, V = torch.svd_lowrank(x_centered, q=q)
-        components = V[:, : self.n_components].T.contiguous()    # [k, d]
+        components = V[:, : self.n_components].T.contiguous()  # [k, d]
         singular = S[: self.n_components]
-        explained_variance = (singular ** 2) / max(n - 1, 1)
-        total_variance = (x_centered ** 2).sum() / max(n - 1, 1)
+        explained_variance = (singular**2) / max(n - 1, 1)
+        total_variance = (x_centered**2).sum() / max(n - 1, 1)
         evr = (explained_variance / total_variance).cpu()
-        whiten_scale = (
-            torch.sqrt(explained_variance).cpu() if self.whiten else None
-        )
+        whiten_scale = torch.sqrt(explained_variance).cpu() if self.whiten else None
         state = _TorchPcaState(
             mean=mean.cpu(),
             components=components.cpu(),
@@ -154,14 +148,13 @@ class PcaFitter:
 
         def _timed(name):
             import contextlib
+
             return timer.timeit_block(name) if timer is not None else contextlib.nullcontext()
 
         with _timed("Counting total number of segments in dataset"):
             total = store.count_total_segments([p.name for p in images])
         with _timed("Fitting PCA model"):
-            model = self.fit_streaming(
-                vlad_comp.iter(store, images, desc="Processing images..."), total
-            )
+            model = self.fit_streaming(vlad_comp.iter(store, images, desc="Processing images..."), total)
         with _timed("Saving PCA model to file"):
             model.save(cache_path)
         logger.info(f"PCA model saved to {cache_path}")

@@ -1,7 +1,6 @@
 from os.path import join, exists
 from collections import namedtuple
 from scipy.io import loadmat
-import os
 import torchvision.transforms as T
 import torch.utils.data as data
 
@@ -13,22 +12,18 @@ root_dir = "./Pittsburgh250k/"
 
 
 if not exists(root_dir):
-    raise FileNotFoundError(
-        "root_dir is hardcoded, please adjust to point to Pittsburgh dataset"
-    )
+    raise FileNotFoundError("root_dir is hardcoded, please adjust to point to Pittsburgh dataset")
 
 struct_dir = join(root_dir, "datasets/")
 queries_dir = join(root_dir, "queries_real")
 
 
 def input_transform(image_size=None):
-    return T.Compose(
-        [
-            T.Resize(image_size),  # interpolation=T.InterpolationMode.BICUBIC),
-            T.ToTensor(),
-            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]
-    )
+    return T.Compose([
+        T.Resize(image_size),  # interpolation=T.InterpolationMode.BICUBIC),
+        T.ToTensor(),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
 
 
 def get_whole_val_set(input_transform):
@@ -53,9 +48,7 @@ def get_250k_test_set(input_transform):
 
 def get_whole_training_set(onlyDB=False):
     structFile = join(struct_dir, "pitts30k_train.mat")
-    return WholeDatasetFromStruct(
-        structFile, input_transform=input_transform(), onlyDB=onlyDB
-    )
+    return WholeDatasetFromStruct(structFile, input_transform=input_transform(), onlyDB=onlyDB)
 
 
 dbStruct = namedtuple(
@@ -154,8 +147,6 @@ class WholeDatasetFromStruct(data.Dataset):
             knn = NearestNeighbors(n_jobs=-1)
             knn.fit(self.dbStruct.utmDb)
 
-            self.distances, self.positives = knn.radius_neighbors(
-                self.dbStruct.utmQ, radius=self.dbStruct.posDistThr
-            )
+            self.distances, self.positives = knn.radius_neighbors(self.dbStruct.utmQ, radius=self.dbStruct.posDistThr)
 
         return self.positives

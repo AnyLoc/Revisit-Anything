@@ -8,21 +8,17 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as T
-import os
 
-default_transform = T.Compose(
-    [
-        T.ToTensor(),
-        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ]
-)
+default_transform = T.Compose([
+    T.ToTensor(),
+    T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
 
 # NOTE: Hard coded path to dataset folder
 BASE_PATH = "./gsv_cities/"
 
 if not Path(BASE_PATH).exists():
-    raise FileNotFoundError(
-        'BASE_PATH is hardcoded, please adjust to point to gsv_cities')
+    raise FileNotFoundError("BASE_PATH is hardcoded, please adjust to point to gsv_cities")
 
 
 class GSVCitiesDataset(Dataset):
@@ -39,9 +35,7 @@ class GSVCitiesDataset(Dataset):
         self.base_path = base_path
         self.cities = cities
 
-        assert (
-            img_per_place <= min_img_per_place
-        ), f"img_per_place should be less than {min_img_per_place}"
+        assert img_per_place <= min_img_per_place, f"img_per_place should be less than {min_img_per_place}"
         self.img_per_place = img_per_place
         self.min_img_per_place = min_img_per_place
         self.random_sample_from_each_place = random_sample_from_each_place
@@ -69,9 +63,7 @@ class GSVCitiesDataset(Dataset):
 
         # append other cities one by one
         for i in range(1, len(self.cities)):
-            tmp_df = pd.read_csv(
-                self.base_path + "Dataframes/" + f"{self.cities[i]}.csv"
-            )
+            tmp_df = pd.read_csv(self.base_path + "Dataframes/" + f"{self.cities[i]}.csv")
 
             # Now we add a prefix to place_id, so that we
             # don't confuse, say, place number 13 of NewYork
@@ -86,10 +78,7 @@ class GSVCitiesDataset(Dataset):
             df = pd.concat([df, tmp_df], ignore_index=True)
 
         # keep only places depicted by at least min_img_per_place images
-        res = df[
-            df.groupby("place_id")["place_id"].transform("size")
-            >= self.min_img_per_place
-        ]
+        res = df[df.groupby("place_id")["place_id"].transform("size") >= self.min_img_per_place]
         return res.set_index("place_id")
 
     def __getitem__(self, index):
@@ -146,9 +135,7 @@ class GSVCitiesDataset(Dataset):
         # now remove the two digit we added to the id
         # they are superficially added to make ids different
         # for different cities
-        pl_id = (
-            row.name % 10**5
-        )  # row.name is the index of the row, not to be confused with image name
+        pl_id = row.name % 10**5  # row.name is the index of the row, not to be confused with image name
         pl_id = str(pl_id).zfill(7)
 
         panoid = row["panoid"]

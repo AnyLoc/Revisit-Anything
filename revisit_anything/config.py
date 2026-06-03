@@ -1,19 +1,20 @@
-from typing import Literal, Optional
-from dataclasses import dataclass, field
+from typing import Optional
+from dataclasses import dataclass
 
 
 @dataclass
 class RuntimeConfig:
-    device: str = "auto"              # auto | cpu | cuda | cuda:N
-    precision: str = "fp32"           # fp32 | fp16
-    faiss_backend: str = "cpu"        # cpu | gpu
-    pca_backend: str = "torch_svd"      # sklearn | torch_svd
+    device: str = "auto"  # auto | cpu | cuda | cuda:N
+    precision: str = "fp32"  # fp32 | fp16
+    faiss_backend: str = "cpu"  # cpu | gpu
+    pca_backend: str = "torch_svd"  # sklearn | torch_svd
     # 0 = auto-detect via revisit_anything.autobatch (profiles DINO+FastSAM
     # peak memory and picks the largest B that fits free*fraction of GPU).
     # Any positive integer is used as-is.
     fused_batch_size: int = 0
     h5_writer_queue: int = 16
     dataloader_num_workers: int = 2
+
 
 @dataclass
 class PCAConfig:
@@ -25,9 +26,10 @@ class PCAConfig:
     order: Optional[int] = 3
     min_area: int = 0
 
+
 @dataclass
 class VLADConfig:
-    cache_dir: str = "Revisit-Anything/cache"
+    cache_dir: str = "/root/polish-pipeline/sfm_project/Revisit-Anything/cache"
     number_clusters: int = 32
     desc_layer: int = 31
     # desc_facet: Literal["query", "key", "value", "token"] = "value"
@@ -35,6 +37,7 @@ class VLADConfig:
     desc_dim: int = 1536
 
     domain: str = "indoor"
+
 
 @dataclass
 class Config:
@@ -46,8 +49,10 @@ class Config:
     desired_height: int = 320
 
     sam_checkpoint: str = "/workspace/Revisit-Anything/models/segment-anything/sam_vit_h_4b8939.pth"
-    fastsam_checkpoint: str = "/workspace/Revisit-Anything/models/segment-anything/FastSAM-x.pt"
-    dino_checkpoint: str = "/workspace/Revisit-Anything/models/dinov2/dinov2_vitg14_pretrain.pth"
+    # fastsam_checkpoint: str = "/workspace/Revisit-Anything/models/segment-anything/FastSAM-x.pt"
+    # dino_checkpoint: str = "/workspace/Revisit-Anything/models/dinov2/dinov2_vitg14_pretrain.pth"
+    fastsam_checkpoint: str = "/root/polish-pipeline/sfm_project/sfm_project/precalc_data/FastSAM-x.pt"
+    dino_checkpoint: str = "/root/polish-pipeline/sfm_project/sfm_project/precalc_data/dinov2_vitg14_pretrain.pth"
 
     dino_model_name: str = "dinov2_vitg14"
 

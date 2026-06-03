@@ -60,12 +60,8 @@ class ViTExtractor:
         self.p = self.model.patch_embed.patch_size
         self.stride = self.model.patch_embed.proj.stride
 
-        self.mean = (
-            (0.485, 0.456, 0.406) if "dino" in self.model_type else (0.5, 0.5, 0.5)
-        )
-        self.std = (
-            (0.229, 0.224, 0.225) if "dino" in self.model_type else (0.5, 0.5, 0.5)
-        )
+        self.mean = (0.485, 0.456, 0.406) if "dino" in self.model_type else (0.5, 0.5, 0.5)
+        self.std = (0.229, 0.224, 0.225) if "dino" in self.model_type else (0.5, 0.5, 0.5)
 
         self._feats = []
         self.hook_handlers = []
@@ -90,9 +86,7 @@ class ViTExtractor:
                 "vit_base_patch16_224": "dino_vitb16",
                 "vit_base_patch8_224": "dino_vitb8",
             }
-            model = torch.hub.load(
-                "facebookresearch/dino:main", model_type_dict[model_type]
-            )
+            model = torch.hub.load("facebookresearch/dino:main", model_type_dict[model_type])
             temp_state_dict = temp_model.state_dict()
             del temp_state_dict["head.weight"]
             del temp_state_dict["head.bias"]
@@ -108,9 +102,7 @@ class ViTExtractor:
         :return: the interpolation method
         """
 
-        def interpolate_pos_encoding(
-            self, x: torch.Tensor, w: int, h: int
-        ) -> torch.Tensor:
+        def interpolate_pos_encoding(self, x: torch.Tensor, w: int, h: int) -> torch.Tensor:
             npatch = x.shape[1] - 1
             N = self.pos_embed.shape[1] - 1
             if npatch == N and w == h:
@@ -121,26 +113,19 @@ class ViTExtractor:
             # compute number of tokens taking stride into account
             w0 = 1 + (w - patch_size) // stride_hw[1]
             h0 = 1 + (h - patch_size) // stride_hw[0]
-            assert (
-                w0 * h0 == npatch
-            ), f"""got wrong grid size for {h}x{w} with patch_size {patch_size} and 
+            assert w0 * h0 == npatch, f"""got wrong grid size for {h}x{w} with patch_size {patch_size} and 
                                             stride {stride_hw} got {h0}x{w0}={h0 * w0} expecting {npatch}"""
             # we add a small number to avoid floating point error in the interpolation
             # see discussion at https://github.com/facebookresearch/dino/issues/8
             w0, h0 = w0 + 0.1, h0 + 0.1
             patch_pos_embed = nn.functional.interpolate(
-                patch_pos_embed.reshape(
-                    1, int(math.sqrt(N)), int(math.sqrt(N)), dim
-                ).permute(0, 3, 1, 2),
+                patch_pos_embed.reshape(1, int(math.sqrt(N)), int(math.sqrt(N)), dim).permute(0, 3, 1, 2),
                 scale_factor=(w0 / math.sqrt(N), h0 / math.sqrt(N)),
                 mode="bicubic",
                 align_corners=False,
                 recompute_scale_factor=True,
             )
-            assert (
-                int(w0) == patch_pos_embed.shape[-2]
-                and int(h0) == patch_pos_embed.shape[-1]
-            )
+            assert int(w0) == patch_pos_embed.shape[-2] and int(h0) == patch_pos_embed.shape[-1]
             patch_pos_embed = patch_pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
             return torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1)
 
@@ -159,16 +144,14 @@ class ViTExtractor:
             return model
 
         stride = nn_utils._pair(stride)
-        assert all(
-            [(patch_size // s_) * s_ == patch_size for s_ in stride]
-        ), f"stride {stride} should divide patch_size {patch_size}"
+        assert all([(patch_size // s_) * s_ == patch_size for s_ in stride]), (
+            f"stride {stride} should divide patch_size {patch_size}"
+        )
 
         # fix the stride
         model.patch_embed.proj.stride = stride
         # fix the positional encoding code
-        model.interpolate_pos_encoding = types.MethodType(
-            ViTExtractor._fix_pos_enc(patch_size, stride), model
-        )
+        model.interpolate_pos_encoding = types.MethodType(ViTExtractor._fix_pos_enc(patch_size, stride), model)
         return model
 
     def preprocess(
@@ -186,12 +169,8 @@ class ViTExtractor:
         """
         pil_image = Image.open(image_path).convert("RGB")
         if load_size is not None:
-            pil_image = transforms.Resize(
-                load_size, interpolation=transforms.InterpolationMode.LANCZOS
-            )(pil_image)
-        prep = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize(mean=self.mean, std=self.std)]
-        )
+            pil_image = transforms.Resize(load_size, interpolation=transforms.InterpolationMode.LANCZOS)(pil_image)
+        prep = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=self.mean, std=self.std)])
         prep_img = prep(pil_image)[None, ...]
         return prep_img, pil_image
 
@@ -218,11 +197,7 @@ class ViTExtractor:
         def _inner_hook(module, input, output):
             input = input[0]
             B, N, C = input.shape
-            qkv = (
-                module.qkv(input)
-                .reshape(B, N, 3, module.num_heads, C // module.num_heads)
-                .permute(2, 0, 3, 1, 4)
-            )
+            qkv = module.qkv(input).reshape(B, N, 3, module.num_heads, C // module.num_heads).permute(2, 0, 3, 1, 4)
             self._feats.append(qkv[facet_idx])  # Bxhxtxd
 
         return _inner_hook
@@ -236,19 +211,11 @@ class ViTExtractor:
         for block_idx, block in enumerate(self.model.blocks):
             if block_idx in layers:
                 if facet == "token":
-                    self.hook_handlers.append(
-                        block.register_forward_hook(self._get_hook(facet))
-                    )
+                    self.hook_handlers.append(block.register_forward_hook(self._get_hook(facet)))
                 elif facet == "attn":
-                    self.hook_handlers.append(
-                        block.attn.attn_drop.register_forward_hook(
-                            self._get_hook(facet)
-                        )
-                    )
+                    self.hook_handlers.append(block.attn.attn_drop.register_forward_hook(self._get_hook(facet)))
                 elif facet in ["key", "query", "value"]:
-                    self.hook_handlers.append(
-                        block.attn.register_forward_hook(self._get_hook(facet))
-                    )
+                    self.hook_handlers.append(block.attn.register_forward_hook(self._get_hook(facet)))
                 else:
                     raise TypeError(f"{facet} is not a supported facet.")
 
@@ -260,9 +227,7 @@ class ViTExtractor:
             handle.remove()
         self.hook_handlers = []
 
-    def _extract_features(
-        self, batch: torch.Tensor, layers: List[int] = 11, facet: str = "key"
-    ) -> List[torch.Tensor]:
+    def _extract_features(self, batch: torch.Tensor, layers: List[int] = 11, facet: str = "key") -> List[torch.Tensor]:
         """
         extract features from the model
         :param batch: batch to extract features for. Has shape BxCxHxW.
@@ -296,9 +261,7 @@ class ViTExtractor:
 
         bin_x = x.permute(0, 2, 3, 1).flatten(start_dim=-2, end_dim=-1)  # Bx(t-1)x(dxh)
         bin_x = bin_x.permute(0, 2, 1)
-        bin_x = bin_x.reshape(
-            B, bin_x.shape[1], self.num_patches[0], self.num_patches[1]
-        )
+        bin_x = bin_x.reshape(B, bin_x.shape[1], self.num_patches[0], self.num_patches[1])
         # Bx(dxh)xnum_patches[0]xnum_patches[1]
         sub_desc_dim = bin_x.shape[1]
 
@@ -306,36 +269,25 @@ class ViTExtractor:
         # compute bins of all sizes for all spatial locations.
         for k in range(0, hierarchy):
             # avg pooling with kernel 3**kx3**k
-            win_size = 3 ** k
-            avg_pool = torch.nn.AvgPool2d(
-                win_size, stride=1, padding=win_size // 2, count_include_pad=False
-            )
+            win_size = 3**k
+            avg_pool = torch.nn.AvgPool2d(win_size, stride=1, padding=win_size // 2, count_include_pad=False)
             avg_pools.append(avg_pool(bin_x))
 
-        bin_x = torch.zeros(
-            (B, sub_desc_dim * num_bins, self.num_patches[0], self.num_patches[1])
-        ).to(self.device)
+        bin_x = torch.zeros((B, sub_desc_dim * num_bins, self.num_patches[0], self.num_patches[1])).to(self.device)
         for y in range(self.num_patches[0]):
             for x in range(self.num_patches[1]):
                 part_idx = 0
                 # fill all bins for a spatial location (y, x)
                 for k in range(0, hierarchy):
-                    kernel_size = 3 ** k
+                    kernel_size = 3**k
                     for i in range(y - kernel_size, y + kernel_size + 1, kernel_size):
-                        for j in range(
-                            x - kernel_size, x + kernel_size + 1, kernel_size
-                        ):
+                        for j in range(x - kernel_size, x + kernel_size + 1, kernel_size):
                             if i == y and j == x and k != 0:
                                 continue
-                            if (
-                                0 <= i < self.num_patches[0]
-                                and 0 <= j < self.num_patches[1]
-                            ):
+                            if 0 <= i < self.num_patches[0] and 0 <= j < self.num_patches[1]:
                                 bin_x[
                                     :,
-                                    part_idx
-                                    * sub_desc_dim : (part_idx + 1)
-                                    * sub_desc_dim,
+                                    part_idx * sub_desc_dim : (part_idx + 1) * sub_desc_dim,
                                     y,
                                     x,
                                 ] = avg_pools[k][:, :, i, j]
@@ -344,16 +296,12 @@ class ViTExtractor:
                                 temp_j = max(0, min(j, self.num_patches[1] - 1))
                                 bin_x[
                                     :,
-                                    part_idx
-                                    * sub_desc_dim : (part_idx + 1)
-                                    * sub_desc_dim,
+                                    part_idx * sub_desc_dim : (part_idx + 1) * sub_desc_dim,
                                     y,
                                     x,
                                 ] = avg_pools[k][:, :, temp_i, temp_j]
                             part_idx += 1
-        bin_x = (
-            bin_x.flatten(start_dim=-2, end_dim=-1).permute(0, 2, 1).unsqueeze(dim=1)
-        )
+        bin_x = bin_x.flatten(start_dim=-2, end_dim=-1).permute(0, 2, 1).unsqueeze(dim=1)
         # Bx1x(t-1)x(dxh)
         return bin_x
 
@@ -387,14 +335,10 @@ class ViTExtractor:
         if not include_cls:
             x = x[:, :, 1:, :]  # remove cls token
         else:
-            assert (
-                not bin
-            ), "bin = True and include_cls = True are not supported together, set one of them False."
-        
+            assert not bin, "bin = True and include_cls = True are not supported together, set one of them False."
+
         if not bin:
-            desc = (
-                x.permute(0, 2, 3, 1).flatten(start_dim=-2, end_dim=-1).unsqueeze(dim=1)
-            )  # Bx1xtx(dxh)
+            desc = x.permute(0, 2, 3, 1).flatten(start_dim=-2, end_dim=-1).unsqueeze(dim=1)  # Bx1xtx(dxh)
         else:
             desc = self._log_bin(x)
         return desc
@@ -406,17 +350,13 @@ class ViTExtractor:
         :param batch: batch to extract saliency maps for. Has shape BxCxHxW.
         :return: a tensor of saliency maps. has shape Bxt-1
         """
-        assert (
-            self.model_type == "dino_vits8"
-        ), f"saliency maps are supported only for dino_vits model_type."
+        assert self.model_type == "dino_vits8", "saliency maps are supported only for dino_vits model_type."
         self._extract_features(batch, [11], "attn")
         head_idxs = [0, 2, 4, 5]
         curr_feats = self._feats[0]  # Bxhxtxt
         cls_attn_map = curr_feats[:, head_idxs, 0, 1:].mean(dim=1)  # Bx(t-1)
         temp_mins, temp_maxs = cls_attn_map.min(dim=1)[0], cls_attn_map.max(dim=1)[0]
-        cls_attn_maps = (cls_attn_map - temp_mins) / (
-            temp_maxs - temp_mins
-        )  # normalize to range [0,1]
+        cls_attn_maps = (cls_attn_map - temp_mins) / (temp_maxs - temp_mins)  # normalize to range [0,1]
         return cls_attn_maps
 
 
@@ -435,21 +375,15 @@ def str2bool(v):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Facilitate ViT Descriptor extraction."
-    )
-    parser.add_argument(
-        "--image_dir", type=str, required=True, help="path of the extracted image."
-    )
+    parser = argparse.ArgumentParser(description="Facilitate ViT Descriptor extraction.")
+    parser.add_argument("--image_dir", type=str, required=True, help="path of the extracted image.")
     parser.add_argument(
         "--output_dir",
         type=str,
         required=True,
         help="directory to store extracted descriptors (same name as image; '.pt' extension).",
     )
-    parser.add_argument(
-        "--load_size", default=224, type=int, help="load size of the input image."
-    )
+    parser.add_argument("--load_size", default=224, type=int, help="load size of the input image.")
     parser.add_argument(
         "--stride",
         default=4,
@@ -472,9 +406,7 @@ if __name__ == "__main__":
         help="""facet to create descriptors from. 
                                                                     options: ['key' | 'query' | 'value' | 'token']""",
     )
-    parser.add_argument(
-        "--layer", default=11, type=int, help="layer to create descriptors from."
-    )
+    parser.add_argument("--layer", default=11, type=int, help="layer to create descriptors from.")
     parser.add_argument(
         "--bin",
         default="False",
@@ -504,9 +436,7 @@ if __name__ == "__main__":
             # print(
             #     f"Image {imgfile} is preprocessed to tensor of size {image_batch.shape}."
             # )
-            descriptors = extractor.extract_descriptors(
-                image_batch.to(device), args.layer, args.facet, args.bin
-            )
+            descriptors = extractor.extract_descriptors(image_batch.to(device), args.layer, args.facet, args.bin)
             # descriptors = descriptors[0, 0, 1:, :]  # (1, 1, H*W+1, 384) -> (H*W, 384)
             descriptors = descriptors.reshape(
                 extractor.num_patches[0],

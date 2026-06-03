@@ -2,7 +2,6 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
-import os
 
 # NOTE: you need to download the mapillary_sls dataset from  https://github.com/FrederikWarburg/mapillary_sls
 # make sure the path where the mapillary_sls validation dataset resides on your computer is correct.
@@ -25,7 +24,7 @@ if not path_obj.joinpath("train_val"):
 class MSLS(Dataset):
     def __init__(self, input_transform=None):
         self.input_transform = input_transform
-        
+
         self.dbImages = np.load("./datasets/msls_val/msls_val_dbImages.npy")
 
         # hard coded query image names.
@@ -35,9 +34,7 @@ class MSLS(Dataset):
         self.qIdx = np.load("./datasets/msls_val/msls_val_qIdx.npy")
 
         # hard coded groundtruth (correspondence between each query and its matches)
-        self.pIdx = np.load(
-            "./datasets/msls_val/msls_val_pIdx.npy", allow_pickle=True
-        )
+        self.pIdx = np.load("./datasets/msls_val/msls_val_pIdx.npy", allow_pickle=True)
 
         # concatenate reference images then query images so that we can use only one dataloader
         self.images = np.concatenate((self.dbImages, self.qImages[self.qIdx]))

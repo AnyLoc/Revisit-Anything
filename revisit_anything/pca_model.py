@@ -19,10 +19,11 @@ class _TorchPcaState:
     Tensors are stored on CPU so the pickle is portable; ``PcaModel``
     re-uploads to its bound device on load.
     """
-    mean: torch.Tensor                  # [d_in]
-    components: torch.Tensor            # [n_components, d_in]
-    whiten_scale: torch.Tensor | None   # [n_components] or None
-    explained_variance_ratio_: torch.Tensor   # [n_components]
+
+    mean: torch.Tensor  # [d_in]
+    components: torch.Tensor  # [n_components, d_in]
+    whiten_scale: torch.Tensor | None  # [n_components] or None
+    explained_variance_ratio_: torch.Tensor  # [n_components]
 
 
 class PcaModel:
@@ -41,11 +42,7 @@ class PcaModel:
             assert isinstance(fitted, _TorchPcaState)
             self._mean = fitted.mean.to(device)
             self._components = fitted.components.to(device)
-            self._whiten_scale = (
-                fitted.whiten_scale.to(device)
-                if fitted.whiten_scale is not None
-                else None
-            )
+            self._whiten_scale = fitted.whiten_scale.to(device) if fitted.whiten_scale is not None else None
 
     def transform(self, x: torch.Tensor) -> torch.Tensor:
         if self.backend == "sklearn":

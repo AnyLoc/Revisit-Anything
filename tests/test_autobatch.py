@@ -20,9 +20,7 @@ from revisit_anything.autobatch import estimate_fused_batch_size
 from revisit_anything.runtime import RuntimeCtx
 
 
-requires_cuda = pytest.mark.skipif(
-    not torch.cuda.is_available(), reason="CUDA required"
-)
+requires_cuda = pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
 
 
 def _ctx(device: str) -> RuntimeCtx:
@@ -60,11 +58,17 @@ def _write_dummy_images(tmp_path: Path, n: int, w: int, h: int) -> list[Path]:
 def test_cpu_returns_fallback() -> None:
     """On CPU the function must short-circuit to ``fallback`` without
     touching the model callables."""
+
     def boom(*a, **kw):
         raise AssertionError("model must not be called on CPU")
 
     result = estimate_fused_batch_size(
-        boom, boom, [], _legacy_cfg(), _ctx("cpu"), fallback=11,
+        boom,
+        boom,
+        [],
+        _legacy_cfg(),
+        _ctx("cpu"),
+        fallback=11,
     )
     assert result == 11
 
@@ -73,8 +77,12 @@ def test_cpu_with_unused_images(tmp_path: Path) -> None:
     """Same as above but with real images present; behaviour unchanged."""
     images = _write_dummy_images(tmp_path, 4, 56, 28)
     result = estimate_fused_batch_size(
-        lambda x: x, lambda *a, **kw: [],
-        images, _legacy_cfg(), _ctx("cpu"), fallback=7,
+        lambda x: x,
+        lambda *a, **kw: [],
+        images,
+        _legacy_cfg(),
+        _ctx("cpu"),
+        fallback=7,
     )
     assert result == 7
 
@@ -85,8 +93,11 @@ def test_insufficient_images_returns_fallback(tmp_path: Path) -> None:
     we cannot run the probe; return ``fallback``."""
     images = _write_dummy_images(tmp_path, 2, 56, 28)  # need 4 for default
     result = estimate_fused_batch_size(
-        lambda x: x, lambda *a, **kw: [],
-        images, _legacy_cfg(), _ctx("cuda"),
+        lambda x: x,
+        lambda *a, **kw: [],
+        images,
+        _legacy_cfg(),
+        _ctx("cuda"),
         fallback=5,
     )
     assert result == 5
@@ -115,9 +126,7 @@ def test_linear_fit_picks_target(tmp_path: Path, monkeypatch) -> None:
         # so it survives until reset_peak_memory_stats picks it up.
         b = x.shape[0]
         captured_inputs.append(b)
-        scratch = torch.empty(
-            (b, PER_IMAGE_FLOATS), device=x.device, dtype=torch.float32
-        )
+        scratch = torch.empty((b, PER_IMAGE_FLOATS), device=x.device, dtype=torch.float32)
         # Touch it so the allocation actually happens.
         scratch.fill_(0)
         return scratch
@@ -125,10 +134,7 @@ def test_linear_fit_picks_target(tmp_path: Path, monkeypatch) -> None:
     def fastsam_stub(cfg, bgr_images, model, imnames, device):
         # Return the empty mask fallback shape the real helper uses.
         h, w = cfg["desired_height"], cfg["desired_width"]
-        return [
-            [{"segmentation": np.zeros((h, w), dtype=bool)}]
-            for _ in imnames
-        ]
+        return [[{"segmentation": np.zeros((h, w), dtype=bool)}] for _ in imnames]
 
     # Patch process_batch_FastSAM in the autobatch module.
     import revisit_anything.autobatch as ab
@@ -140,10 +146,12 @@ def test_linear_fit_picks_target(tmp_path: Path, monkeypatch) -> None:
     # We can't override get_device_properties, but we can choose
     # fraction such that the answer falls inside `bounds`.
     result = estimate_fused_batch_size(
-        dino_stub, object(), images,
+        dino_stub,
+        object(),
+        images,
         _legacy_cfg(),
         _ctx("cuda"),
-        fraction=0.05,        # keep B small so we don't OOM the test box
+        fraction=0.05,  # keep B small so we don't OOM the test box
         probe_batches=(1, 2),
         bounds=(1, 64),
         fallback=99,
@@ -156,9 +164,7 @@ def test_linear_fit_picks_target(tmp_path: Path, monkeypatch) -> None:
 
 
 @requires_cuda
-def test_oom_in_probe_falls_back_to_largest_succeeding(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_oom_in_probe_falls_back_to_largest_succeeding(tmp_path: Path, monkeypatch) -> None:
     """If the largest probe OOMs, the chosen B must not exceed the largest
     probe that succeeded."""
     images = _write_dummy_images(tmp_path, 4, 56, 28)
@@ -167,25 +173,23 @@ def test_oom_in_probe_falls_back_to_largest_succeeding(
         b = x.shape[0]
         if b >= 4:
             raise torch.cuda.OutOfMemoryError("simulated")
-        return torch.empty(
-            (b, 16 * 1024 * 1024), device=x.device, dtype=torch.float32
-        ).fill_(0)
+        return torch.empty((b, 16 * 1024 * 1024), device=x.device, dtype=torch.float32).fill_(0)
 
     def fastsam_stub(cfg, bgr_images, model, imnames, device):
         h, w = cfg["desired_height"], cfg["desired_width"]
-        return [
-            [{"segmentation": np.zeros((h, w), dtype=bool)}]
-            for _ in imnames
-        ]
+        return [[{"segmentation": np.zeros((h, w), dtype=bool)}] for _ in imnames]
 
     import revisit_anything.autobatch as ab
+
     monkeypatch.setattr(ab.func_vpr, "process_batch_FastSAM", fastsam_stub)
 
     result = estimate_fused_batch_size(
-        dino_stub, object(), images,
+        dino_stub,
+        object(),
+        images,
         _legacy_cfg(),
         _ctx("cuda"),
-        fraction=0.95,           # try to push hard so unclamped B>=4
+        fraction=0.95,  # try to push hard so unclamped B>=4
         probe_batches=(1, 2, 4),
         bounds=(1, 64),
         fallback=99,
@@ -196,9 +200,7 @@ def test_oom_in_probe_falls_back_to_largest_succeeding(
 
 
 @requires_cuda
-def test_too_few_successful_probes_returns_fallback(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_too_few_successful_probes_returns_fallback(tmp_path: Path, monkeypatch) -> None:
     """If only one probe succeeds we can't fit a line; fall back."""
     images = _write_dummy_images(tmp_path, 4, 56, 28)
 
@@ -206,22 +208,20 @@ def test_too_few_successful_probes_returns_fallback(
         b = x.shape[0]
         if b >= 2:
             raise torch.cuda.OutOfMemoryError("simulated")
-        return torch.empty(
-            (b, 1024 * 1024), device=x.device, dtype=torch.float32
-        ).fill_(0)
+        return torch.empty((b, 1024 * 1024), device=x.device, dtype=torch.float32).fill_(0)
 
     def fastsam_stub(cfg, bgr_images, model, imnames, device):
         h, w = cfg["desired_height"], cfg["desired_width"]
-        return [
-            [{"segmentation": np.zeros((h, w), dtype=bool)}]
-            for _ in imnames
-        ]
+        return [[{"segmentation": np.zeros((h, w), dtype=bool)}] for _ in imnames]
 
     import revisit_anything.autobatch as ab
+
     monkeypatch.setattr(ab.func_vpr, "process_batch_FastSAM", fastsam_stub)
 
     result = estimate_fused_batch_size(
-        dino_stub, object(), images,
+        dino_stub,
+        object(),
+        images,
         _legacy_cfg(),
         _ctx("cuda"),
         probe_batches=(1, 2, 4),

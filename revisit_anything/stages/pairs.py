@@ -81,9 +81,7 @@ class PairBuilder:
 
         seg_range_full = vlads.seg_range(n_cur)
         seg_range_query = [seg_range_full[i] for i in query_idx_in_cur]
-        query_seg_idx = (
-            np.concatenate(seg_range_query) if seg_range_query else np.empty(0, dtype=int)
-        )
+        query_seg_idx = np.concatenate(seg_range_query) if seg_range_query else np.empty(0, dtype=int)
 
         # ``get_matches`` indexes ``matches`` rows via segRangeQuery, so the
         # ranges must be expressed in the local 0..M-1 layout of ``q_feats``.
@@ -104,13 +102,23 @@ class PairBuilder:
         matches_50 = matches[:, :50]
         dummy_gt = [[] for _ in range(len(query_images))]
         preds = utils.get_matches(
-            matches_50, dummy_gt, sims_50, seg_range_query_local, combined_im_inds,
-            n=self.top_n + 1, method="max_seg_topk_wt_borda_Im",
+            matches_50,
+            dummy_gt,
+            sims_50,
+            seg_range_query_local,
+            combined_im_inds,
+            n=self.top_n + 1,
+            method="max_seg_topk_wt_borda_Im",
         )
 
         return self._write(
-            preds, query_idx_in_cur, all_images, n_cur,
-            current_prefix, past_prefix, output_folder,
+            preds,
+            query_idx_in_cur,
+            all_images,
+            n_cur,
+            current_prefix,
+            past_prefix,
+            output_folder,
         )
 
     def _write(

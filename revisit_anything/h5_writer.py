@@ -38,9 +38,7 @@ class AsyncH5Writer:
         self._q: queue.Queue = queue.Queue(maxsize=max_queue)
         self._error: Optional[BaseException] = None
         self._closed = False
-        self._thread = threading.Thread(
-            target=self._run, name=f"h5w[{self.path.name}]", daemon=True
-        )
+        self._thread = threading.Thread(target=self._run, name=f"h5w[{self.path.name}]", daemon=True)
         self._thread.start()
 
     def _run(self) -> None:
@@ -60,13 +58,9 @@ class AsyncH5Writer:
 
     def put(self, item: Any) -> None:
         if self._error is not None:
-            raise RuntimeError(
-                f"AsyncH5Writer for {self.path} has errored"
-            ) from self._error
+            raise RuntimeError(f"AsyncH5Writer for {self.path} has errored") from self._error
         if self._closed:
-            raise RuntimeError(
-                f"AsyncH5Writer for {self.path} is already closed"
-            )
+            raise RuntimeError(f"AsyncH5Writer for {self.path} is already closed")
         self._q.put(item)
 
     def close(self) -> None:
@@ -76,9 +70,7 @@ class AsyncH5Writer:
         self._q.put(_STOP)
         self._thread.join()
         if self._error is not None:
-            raise RuntimeError(
-                f"AsyncH5Writer for {self.path} crashed"
-            ) from self._error
+            raise RuntimeError(f"AsyncH5Writer for {self.path} crashed") from self._error
 
     def __enter__(self) -> "AsyncH5Writer":
         return self
@@ -96,11 +88,13 @@ def dino_write_fn(f: h5py.File, item: tuple[str, np.ndarray]) -> None:
     """
     name, feat = item
     grp = f.create_group(name)
-    grp.create_dataset("ift_dino", 
-                       data=feat.astype(np.float16, copy=False),
-                       # data=feat,
-                       chunks=True, )
-                       # compression="gzip", compression_opts=9, shuffle=True)
+    grp.create_dataset(
+        "ift_dino",
+        data=feat.astype(np.float16, copy=False),
+        # data=feat,
+        chunks=True,
+    )
+    # compression="gzip", compression_opts=9, shuffle=True)
 
 
 def masks_write_fn(f: h5py.File, item: tuple[str, list[np.ndarray]]) -> None:
@@ -115,14 +109,15 @@ def masks_write_fn(f: h5py.File, item: tuple[str, list[np.ndarray]]) -> None:
     masks_grp = grp.create_group("masks")
     for j, seg in enumerate(masks_seg):
         masks_grp.create_dataset(
-            f"{j}/segmentation", data=seg, shuffle=True, compression="lzf",
+            f"{j}/segmentation",
+            data=seg,
+            shuffle=True,
+            compression="lzf",
             # compression="gzip", chunks=True, compression_opts=9, shuffle=True
         )
 
 
-def vlads_write_fn(
-    f: h5py.File, item: tuple[str, np.ndarray]
-) -> None:
+def vlads_write_fn(f: h5py.File, item: tuple[str, np.ndarray]) -> None:
     """Writer for the optional ``vlads_{W}.h5`` cache.
 
     Item is ``(image_name, vlad_np, im_inds_np)``. ``vlad_np`` is the raw
@@ -131,5 +126,9 @@ def vlads_write_fn(
     """
     name, vlad = item
     grp = f.create_group(name)
-    grp.create_dataset("vlad", data=vlad, chunks=True, )
-                       # compression="gzip", compression_opts=9, shuffle=True)
+    grp.create_dataset(
+        "vlad",
+        data=vlad,
+        chunks=True,
+    )
+    # compression="gzip", compression_opts=9, shuffle=True)

@@ -1,15 +1,15 @@
 import cv2
-import os
 import warnings
-import numpy as np
 import torch
 import torchvision
+
 torch.hub.set_dir("./hub")
 
-def preprocess_image(img, half = False,reshape_to = None):
-    
+
+def preprocess_image(img, half=False, reshape_to=None):
+
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    if reshape_to: 
+    if reshape_to:
         img = cv2.resize(img, reshape_to)
     img = torch.from_numpy(img).float() / 255.0
     img = img[..., :3]  # drop alpha channel, if present
@@ -24,9 +24,7 @@ def preprocess_image(img, half = False,reshape_to = None):
 
 
 def upsample_feat_vec(feat, target_shape):
-    return torch.nn.functional.interpolate(
-        feat, target_shape, mode="bilinear", align_corners=True
-    )
+    return torch.nn.functional.interpolate(feat, target_shape, mode="bilinear", align_corners=True)
 
 
 class VITFeatureExtractor(torch.nn.Module):
@@ -52,15 +50,9 @@ class VITFeatureExtractor(torch.nn.Module):
                     self.desired_width = kwargs["desired_width"]
                     self.upsample = True
                 else:
-                    warnings.warn(
-                        "Ignoring upsample arguments as they are incomplete. "
-                        "Missing `desired_width`."
-                    )
+                    warnings.warn("Ignoring upsample arguments as they are incomplete. Missing `desired_width`.")
             else:
-                warnings.warn(
-                    "Ignoring upsample arguments as they are incomplete. "
-                    "Missing `desired_height`."
-                )
+                warnings.warn("Ignoring upsample arguments as they are incomplete. Missing `desired_height`.")
         else:
             self.upsample = False
         # Layer to extract feature maps from
@@ -79,24 +71,20 @@ class VITFeatureExtractor(torch.nn.Module):
     def get_input_image_transform(self):
         _NORM_MEAN = [0.485, 0.456, 0.406]
         _NORM_STD = [0.229, 0.224, 0.225]
-        return torchvision.transforms.Compose(
-            [torchvision.transforms.Normalize(mean=_NORM_MEAN, std=_NORM_STD)]
-        )
+        return torchvision.transforms.Compose([torchvision.transforms.Normalize(mean=_NORM_MEAN, std=_NORM_STD)])
 
     def forward(self, img, apply_default_input_transform=False):
         img = torchvision.transforms.functional.resize(img, self.load_size)
         #
-        #print("shape is", img.shape)
-        #img = torchvision.transforms.functional.resize(img, (self.load_size, int(img.shape[-1]/(img.shape[-2]/self.load_size))))
-         
-        #print(img.shape)
-        #input()
+        # print("shape is", img.shape)
+        # img = torchvision.transforms.functional.resize(img, (self.load_size, int(img.shape[-1]/(img.shape[-2]/self.load_size))))
+
+        # print(img.shape)
+        # input()
         if apply_default_input_transform:
             # Default input image transfoms
             img = self.input_image_transform(img)
-        feat = self.extractor.extract_descriptors(
-            img, self.layer_idx_to_extract_from, self.facet, self.binned
-        )
+        feat = self.extractor.extract_descriptors(img, self.layer_idx_to_extract_from, self.facet, self.binned)
         feat = feat.reshape(
             self.extractor.num_patches[0],
             self.extractor.num_patches[1],
@@ -108,7 +96,6 @@ class VITFeatureExtractor(torch.nn.Module):
             feat = upsample_feat_vec(feat, [self.desired_height, self.desired_width])
         return feat
 
-def binary_boundaries(labels, cutoff=0.5):  
-  return [consecutive(channel.nonzero()[0]) for channel in binarize(labels, cutoff)]
 
-
+def binary_boundaries(labels, cutoff=0.5):
+    return [consecutive(channel.nonzero()[0]) for channel in binarize(labels, cutoff)]

@@ -59,16 +59,13 @@ def estimate_fused_batch_size(
             probes succeed, or on any unexpected error.
     """
     if ctx.device.type != "cuda":
-        logger.info(
-            f"autobatch: device={ctx.device}, returning fallback={fallback}"
-        )
+        logger.info(f"autobatch: device={ctx.device}, returning fallback={fallback}")
         return fallback
 
     max_probe = max(probe_batches)
     if len(images) < max_probe:
         logger.warning(
-            f"autobatch: only {len(images)} probe images available "
-            f"(need {max_probe}), returning fallback={fallback}"
+            f"autobatch: only {len(images)} probe images available (need {max_probe}), returning fallback={fallback}"
         )
         return fallback
 
@@ -123,9 +120,7 @@ def estimate_fused_batch_size(
                     torch.cuda.synchronize(device)
                     peak = torch.cuda.max_memory_allocated(device) / _GB
                     peaks.append((b, peak))
-                    logger.info(
-                        f"autobatch: B={b} peak={peak:.2f}G"
-                    )
+                    logger.info(f"autobatch: B={b} peak={peak:.2f}G")
                 except torch.cuda.OutOfMemoryError:
                     logger.warning(f"autobatch: OOM at B={b}, stopping probe")
                     oom_at = b
@@ -135,20 +130,14 @@ def estimate_fused_batch_size(
                     del dino_tensors
 
         if len(peaks) < 2:
-            logger.warning(
-                f"autobatch: only {len(peaks)} successful probe(s), "
-                f"returning fallback={fallback}"
-            )
+            logger.warning(f"autobatch: only {len(peaks)} successful probe(s), returning fallback={fallback}")
             return fallback
 
         xs = np.array([b for b, _ in peaks], dtype=np.float64)
         ys = np.array([m for _, m in peaks], dtype=np.float64)
         slope, intercept = np.polyfit(xs, ys, deg=1)
         if slope <= 0:
-            logger.warning(
-                f"autobatch: non-positive slope ({slope:.3f}G/B), "
-                f"returning fallback={fallback}"
-            )
+            logger.warning(f"autobatch: non-positive slope ({slope:.3f}G/B), returning fallback={fallback}")
             return fallback
 
         target = free * fraction
@@ -173,8 +162,5 @@ def estimate_fused_batch_size(
         return b_star
 
     except Exception as e:
-        logger.warning(
-            f"autobatch: unexpected error ({type(e).__name__}: {e}), "
-            f"returning fallback={fallback}"
-        )
+        logger.warning(f"autobatch: unexpected error ({type(e).__name__}: {e}), returning fallback={fallback}")
         return fallback

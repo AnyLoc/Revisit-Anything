@@ -45,9 +45,7 @@ from revisit_anything.stages.vlad import (
 from revisit_anything.vlad_index import build_pixel_to_patch_index
 
 
-requires_cuda = pytest.mark.skipif(
-    not torch.cuda.is_available(), reason="CUDA required"
-)
+requires_cuda = pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
 
 
 def _make_ctx(device: str = "cuda") -> RuntimeCtx:
@@ -80,9 +78,7 @@ def test_async_h5_writer_round_trip(tmp_path: Path) -> None:
         keys = sorted(f.keys(), key=lambda k: int(k.split("_")[1]))
         assert keys == [f"k_{i}" for i in range(20)]
         for i, k in enumerate(keys):
-            np.testing.assert_array_equal(
-                f[k][()], np.arange(i + 1, dtype=np.int32)
-            )
+            np.testing.assert_array_equal(f[k][()], np.arange(i + 1, dtype=np.int32))
 
 
 def test_async_h5_writer_dino_schema(tmp_path: Path) -> None:
@@ -242,20 +238,31 @@ def test_seg_vlad_from_tensors_matches_legacy(tmp_path: Path) -> None:
 
     with h5py.File(str(dino_path), "r") as desc_h5:
         legacy_vlad = func_vpr.seg_vlad_gpu_single(
-            ind_matrix, idx_matrix, desc_h5, "img_0.png", masks_seg,
-            c_centers, legacy_cfg, desc_dim=desc_dim,
-            adj_mat=adj_legacy, device="cuda",
+            ind_matrix,
+            idx_matrix,
+            desc_h5,
+            "img_0.png",
+            masks_seg,
+            c_centers,
+            legacy_cfg,
+            desc_dim=desc_dim,
+            adj_mat=adj_legacy,
+            device="cuda",
         ).cuda()
 
     new_vlad = seg_vlad_gpu_from_tensors(
-        feat[0], masks_gpu, c_centers, ind_matrix,
-        desired_height=H, desired_width=W, desc_dim=desc_dim,
-        adj_mat=adj_new, device="cuda",
+        feat[0],
+        masks_gpu,
+        c_centers,
+        ind_matrix,
+        desired_height=H,
+        desired_width=W,
+        desc_dim=desc_dim,
+        adj_mat=adj_new,
+        device="cuda",
     )
 
-    torch.testing.assert_close(
-        new_vlad.float(), legacy_vlad.float(), rtol=1e-4, atol=1e-5
-    )
+    torch.testing.assert_close(new_vlad.float(), legacy_vlad.float(), rtol=1e-4, atol=1e-5)
 
 
 # ---------------------------------------------------------------------------
@@ -339,18 +346,14 @@ def test_compute_all_from_cache_skips_recompute(tmp_path: Path) -> None:
         svd_solver="randomized",
         max_segments=10000,
     )
-    pca = fitter.fit_from_buffer(
-        torch.from_numpy(np.concatenate(fake_vlads, axis=0)).float().cuda()
-    )
+    pca = fitter.fit_from_buffer(torch.from_numpy(np.concatenate(fake_vlads, axis=0)).float().cuda())
 
     store = _fake_feature_store(tmp_path, names)
     store.vlads_h5_path = vlads_h5
 
     n_clusters = 32
     c_centers = torch.randn(n_clusters, 1536)
-    idx_matrix, ind_matrix = build_pixel_to_patch_index(
-        height=140, width=140, device=torch.device("cuda")
-    )
+    idx_matrix, ind_matrix = build_pixel_to_patch_index(height=140, width=140, device=torch.device("cuda"))
     comp = VladComputer(
         ctx,
         c_centers,
@@ -361,14 +364,10 @@ def test_compute_all_from_cache_skips_recompute(tmp_path: Path) -> None:
     )
 
     images = [Path(n) for n in names]
-    out = comp.compute_all(
-        store, images, pca=pca, vlads_cache_h5=store.vlads_h5_path
-    )
+    out = comp.compute_all(store, images, pca=pca, vlads_cache_h5=store.vlads_h5_path)
 
     # Re-apply PCA manually to verify equivalence.
-    expected = pca.transform(
-        torch.from_numpy(np.concatenate(fake_vlads, axis=0)).float().cuda()
-    ).cpu()
+    expected = pca.transform(torch.from_numpy(np.concatenate(fake_vlads, axis=0)).float().cuda()).cpu()
     np.testing.assert_allclose(
         out.feats.cpu().numpy(),
         expected.cpu().numpy(),
@@ -377,7 +376,5 @@ def test_compute_all_from_cache_skips_recompute(tmp_path: Path) -> None:
     )
     # im_inds must match (rebuilt from the input image list, not the cached
     # values which encode the *writer-time* dataset index).
-    expected_inds = np.concatenate(
-        [np.full(v.shape[0], i, dtype=np.int64) for i, v in enumerate(fake_vlads)]
-    )
+    expected_inds = np.concatenate([np.full(v.shape[0], i, dtype=np.int64) for i, v in enumerate(fake_vlads)])
     np.testing.assert_array_equal(out.im_inds, expected_inds)

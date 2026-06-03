@@ -5,9 +5,7 @@ import numpy as np
 
 
 # Code from SuperGlue (https://github.com/magicleap/SuperGluePretrainedNetwork/blob/master/models/superglue.py)
-def log_sinkhorn_iterations(
-    Z: torch.Tensor, log_mu: torch.Tensor, log_nu: torch.Tensor, iters: int
-) -> torch.Tensor:
+def log_sinkhorn_iterations(Z: torch.Tensor, log_mu: torch.Tensor, log_nu: torch.Tensor, iters: int) -> torch.Tensor:
     """Perform Sinkhorn Normalization in Log-space for stability"""
     u, v = torch.zeros_like(log_mu), torch.zeros_like(log_nu)
     for _ in range(iters):
@@ -17,9 +15,7 @@ def log_sinkhorn_iterations(
 
 
 # Code from SuperGlue (https://github.com/magicleap/SuperGluePretrainedNetwork/blob/master/models/superglue.py)
-def log_optimal_transport(
-    scores: torch.Tensor, alpha: torch.Tensor, iters: int
-) -> torch.Tensor:
+def log_optimal_transport(scores: torch.Tensor, alpha: torch.Tensor, iters: int) -> torch.Tensor:
     """Perform Differentiable Optimal Transport in Log-space for stability"""
     b, m, n = scores.shape
     one = scores.new_tensor(1)
@@ -152,9 +148,7 @@ class SALAD(nn.Module):
             os.makedirs(dirPath, exist_ok=True)
             results = {}
             for i in range(N):
-                image_id = labels[
-                    i
-                ].item()  # Assuming labels are numpy array of image IDs
+                image_id = labels[i].item()  # Assuming labels are numpy array of image IDs
                 file_path = os.path.join(dirPath, f"{image_id}.npz")
                 if not os.path.exists(file_path):
                     results = {

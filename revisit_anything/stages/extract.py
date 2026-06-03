@@ -117,6 +117,7 @@ class FeatureExtractor:
     def _timed(self, name: str):
         if self.timer is None:
             import contextlib
+
             return contextlib.nullcontext()
         return self.timer.timeit_block(name)
 
@@ -126,7 +127,7 @@ class FeatureExtractor:
         images: list[Path],
         output_folder: Path,
     ) -> FeatureStore:
-        feature_dir = output_folder# / "image_feature_dicts"
+        feature_dir = output_folder  # / "image_feature_dicts"
         feature_dir.mkdir(parents=True, exist_ok=True)
         dino_h5 = feature_dir / f"dino_{self.desired_width}.h5"
         masks_h5 = feature_dir / f"masks_{self.desired_width}.h5"
@@ -146,13 +147,21 @@ class FeatureExtractor:
             with self._timed(f"{self.segmenter.upper()} feature extraction"):
                 if self.segmenter == "sam":
                     func_vpr.process_SAM_to_h5(
-                        masks_h5, self.legacy_cfg, images, self._load_segmenter(),
-                        device=str(self.ctx.device), dataDir=str(image_folder),
+                        masks_h5,
+                        self.legacy_cfg,
+                        images,
+                        self._load_segmenter(),
+                        device=str(self.ctx.device),
+                        dataDir=str(image_folder),
                     )
                 else:
                     func_vpr.process_SAM_to_h5_FastSAM(
-                        masks_h5, self.legacy_cfg, images, self._load_segmenter(),
-                        device=str(self.ctx.device), dataDir=str(image_folder),
+                        masks_h5,
+                        self.legacy_cfg,
+                        images,
+                        self._load_segmenter(),
+                        device=str(self.ctx.device),
+                        dataDir=str(image_folder),
                     )
 
         return FeatureStore(dino_h5, masks_h5)
@@ -198,7 +207,7 @@ class FeatureExtractor:
                 feat_np = feat.detach().cpu().numpy()
                 for i, name in enumerate(names):
                     grp = f.create_group(name)
-                    grp.create_dataset("ift_dino", data=feat_np[i:i+1], chunks=True)
+                    grp.create_dataset("ift_dino", data=feat_np[i : i + 1], chunks=True)
 
     def close(self) -> None:
         """Release model handles and free CUDA memory."""
