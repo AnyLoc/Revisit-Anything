@@ -291,7 +291,7 @@ class FusedFeaturePcaStage:
         if batch_size == 0:
             from revisit_anything.autobatch import estimate_fused_batch_size
 
-            batch_size = np.floor(0.9*oestimate_fused_batch_size(
+            batch_size = np.floor(0.9*estimate_fused_batch_size(
                 dino,
                 fastsam,
                 images,
