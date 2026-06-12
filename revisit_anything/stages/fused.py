@@ -405,6 +405,7 @@ class FusedFeaturePcaStage:
                 whiten=self.config.pca_config.whiten,
                 svd_solver=self.config.pca_config.svd_solver,
                 max_segments=self.config.pca_config.max_segments,
+                svd_chunk_size=self.config.pca_config.svd_chunk_size,
             ).fit_from_buffer(reservoir.tensor())
             pca.save(pca_cache_path)
             logger.info(f"PCA model saved to {pca_cache_path}")

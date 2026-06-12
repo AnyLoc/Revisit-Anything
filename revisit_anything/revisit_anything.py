@@ -175,6 +175,7 @@ class RevisitAnything:
                     whiten=self._cfg.pca_config.whiten,
                     svd_solver=self._cfg.pca_config.svd_solver,
                     max_segments=self._cfg.pca_config.max_segments,
+                    svd_chunk_size=self._cfg.pca_config.svd_chunk_size,
                 ).fit_or_load(
                     store,
                     images,

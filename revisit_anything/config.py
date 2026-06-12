@@ -25,6 +25,10 @@ class PCAConfig:
     svd_solver: str = "randomized"
     order: Optional[int] = 3
     min_area: int = 0
+    # Row-chunk size for the GPU chunked randomized SVD used by
+    # ``torch_svd`` backend. Keeps the (n × d) reservoir from being
+    # materialised in fp32 all at once; only one chunk is upcast at a time.
+    svd_chunk_size: int = 4096
 
 
 @dataclass
