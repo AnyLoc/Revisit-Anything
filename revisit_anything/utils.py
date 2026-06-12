@@ -784,6 +784,30 @@ def process_single_FastSAM(cfg, input_image, model, imname, device="cuda", imgsz
     return masks
 
 
+def _fastsam_empty_fallback(cfg):
+    """Construct the (2, H, W) bool fallback mask used when FastSAM produces
+    no usable result for an image (empty detection or OOM)."""
+    h, w = cfg["desired_height"], cfg["desired_width"]
+    ann_numpy = np.zeros((2, h, w), dtype=bool)
+    ann_numpy[0] = np.ones((h, w), dtype=bool)
+    ann_numpy[1, np.random.randint(0, h), np.random.randint(0, w)] = True
+    return ann_numpy
+
+
+def _run_fastsam_single(model, image, device, retina, imgsz, conf, iou):
+    """Run FastSAM on one image with OOM-safe cleanup. Returns the single
+    ultralytics result or ``None`` on OOM."""
+    try:
+        if str(device).startswith("cuda"):
+            torch.cuda.empty_cache()
+        res = model(image, device=device, retina_masks=retina, imgsz=imgsz, conf=conf, iou=iou)
+        return res[0] if res else None
+    except torch.cuda.OutOfMemoryError:
+        if str(device).startswith("cuda"):
+            torch.cuda.empty_cache()
+        return None
+
+
 def process_batch_FastSAM(cfg, input_images, model, imnames, device="cuda", imgsz=1024, iou=0.9, conf=0.4, retina=True):
     """Batched twin of :func:`process_single_FastSAM`.
 
@@ -792,39 +816,54 @@ def process_batch_FastSAM(cfg, input_images, model, imnames, device="cuda", imgs
     still per-image because FastSAMPrompt is stateful per source image.
     Returns a list of per-image mask-dict lists matching
     ``process_single_FastSAM`` so downstream consumers are unchanged.
-    """
-    # pil_imgs = []
-    # for img in input_images:
-    # rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    # if cfg['resize']:
-    # rgb = cv2.resize(rgb, (cfg['desired_width'], cfg['desired_height']))
-    # pil_imgs.append(Image.fromarray(rgb))
 
-    everything_results = model(
-        # pil_imgs,
-        input_images,
-        device=device,
-        retina_masks=retina,
-        imgsz=imgsz,
-        conf=conf,
-        iou=iou,
-    )
+    OOM handling has three stages:
+      1. Try the batched forward; on OOM, clear cache and treat the whole
+         batch result as unavailable.
+      2. For each image whose batched result is missing or ``None``, retry
+         the forward with batch size 1 (lower peak memory).
+      3. If the single retry also OOMs or yields no masks, use the empty
+         fallback (all-ones + one random pixel) so downstream stages keep
+         a deterministic shape.
+    """
+    try:
+        everything_results = model(
+            input_images,
+            device=device,
+            retina_masks=retina,
+            imgsz=imgsz,
+            conf=conf,
+            iou=iou,
+        )
+    except torch.cuda.OutOfMemoryError:
+        print(f"[FastSAM] batch OOM on B={len(input_images)}, falling back to per-image")
+        if str(device).startswith("cuda"):
+            torch.cuda.empty_cache()
+        everything_results = None
 
     out: list[list[dict]] = []
     for i, name in enumerate(imnames):
-        # prompt_process = FastSAMPrompt(pil_imgs[i], [everything_results[i]], device=device)
-        prompt_process = FastSAMPrompt(input_images[i], [everything_results[i]], device=device)
-        ann = prompt_process.everything_prompt()
-        if isinstance(ann, torch.Tensor):
-            ann_numpy = ann.cpu().numpy().astype(bool)
-        else:
-            print("Empty list - no masks found for image name : ", name)
-            print("printing ann for verification: ", ann)
-            ann_numpy = np.zeros((2, cfg["desired_height"], cfg["desired_width"]), dtype=bool)
-            ann_numpy[0] = np.ones((cfg["desired_height"], cfg["desired_width"]), dtype=bool)
-            random_row = np.random.randint(0, cfg["desired_height"])
-            random_col = np.random.randint(0, cfg["desired_width"])
-            ann_numpy[1, random_row, random_col] = True
+        result_i = None
+        if everything_results is not None and i < len(everything_results):
+            result_i = everything_results[i]
+        if result_i is None:
+            print(f"[FastSAM] retrying {name} single (batch result None/OOM)")
+            result_i = _run_fastsam_single(model, input_images[i], device, retina, imgsz, conf, iou)
+
+        ann_numpy = None
+        if result_i is not None:
+            prompt_process = FastSAMPrompt(input_images[i], [result_i], device=device)
+            ann = prompt_process.everything_prompt()
+            if isinstance(ann, torch.Tensor):
+                ann_numpy = ann.cpu().numpy().astype(bool)
+            else:
+                print("Empty list - no masks found for image name : ", name)
+                print("printing ann for verification: ", ann)
+
+        if ann_numpy is None:
+            print(f"[FastSAM] empty fallback for {name}")
+            ann_numpy = _fastsam_empty_fallback(cfg)
+
         masks = [{"segmentation": ann_numpy[j]} for j in range(ann_numpy.shape[0])]
         out.append(masks)
     return out
