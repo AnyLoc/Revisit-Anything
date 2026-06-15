@@ -257,7 +257,9 @@ class DinoV2ExtractFeatures:
         self.vit_type: str = dino_model
         self.device = torch.device(device)
         if checkpoint_path is not None:
-            self.dino_model: nn.Module = torch.hub.load("facebookresearch/dinov2", dino_model, pretrained=False)
+            # self.dino_model: nn.Module = torch.hub.load("facebookresearch/dinov2", dino_model, pretrained=False)
+            self.dino_model: nn.Module = torch.hub.load(
+                "/opt/dinov2", dino_model, source="local", pretrained=False)
             state_dict = torch.load(checkpoint_path, map_location="cpu")
             self.dino_model.load_state_dict(state_dict)
         else:
