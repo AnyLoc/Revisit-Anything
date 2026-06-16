@@ -851,7 +851,7 @@ def process_batch_FastSAM(cfg, input_images, model, imnames, device="cuda", imgs
             result_i = _run_fastsam_single(model, input_images[i], device, retina, imgsz, conf, iou)
 
         ann_numpy = None
-        if result_i is not None:
+        if result_i is not None and result_i.masks is not None:
             prompt_process = FastSAMPrompt(input_images[i], [result_i], device=device)
             ann = prompt_process.everything_prompt()
             if isinstance(ann, torch.Tensor):
